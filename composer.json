@@ -6,7 +6,9 @@
     "license": "MIT",
     "require": {
         "php": "^7.3|^8.0",
+        "firebase/php-jwt": "^6.0",
         "fruitcake/laravel-cors": "^2.0",
+        "getsolaris/laravel-make-service": "^1.0",
         "guzzlehttp/guzzle": "^7.0.1",
         "ixudra/curl": "^6.22",
         "jenssegers/mongodb": "^3.8",
