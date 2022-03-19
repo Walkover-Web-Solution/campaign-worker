@@ -46,7 +46,7 @@ class EmailLib
             $jwt['need_validation'] = false; // run case handle,
         }
         $jwt['ip'] = request()->ip;
-        
+
         $authorization = JWTEncode($jwt);
 
         $tempOption = 'TIMEOUT';

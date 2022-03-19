@@ -4,7 +4,7 @@ namespace App\Libs;
 
 use Ixudra\Curl\Facades\Curl;
 
-class EmailLib
+class SmsLib
 {
     public function send($input)
     {

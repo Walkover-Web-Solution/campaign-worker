@@ -4,7 +4,7 @@ namespace App\Libs;
 
 use Ixudra\Curl\Facades\Curl;
 
-class EmailLib
+class VoiceLib
 {
     public function send($input)
     {
