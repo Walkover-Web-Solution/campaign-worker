@@ -29,5 +29,11 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+    'rabbitmq'=>[
+        'host'=>env('RABBITMQ_HOST','localhost'),
+        'port'=>env('RABBITMQ_PORT',5672),
+        'username'=>env('RABBITMQ_USERNAME','guest'),
+        'password'=>env('RABBITMQ_PASSWORD','guest'),
+    ],
 
 ];
