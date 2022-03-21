@@ -39,6 +39,6 @@ class TestingCommand extends Command
     public function handle()
     {
       $obj = new ChannelService();
-      $obj->sendData(2,1);
+      $obj->sendData(2,4);
     }
 }

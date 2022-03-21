@@ -15,22 +15,23 @@ use App\Models\FlowAction;
  */
 class ChannelService
 {
-    public function sendData($campid){
-
-        $flow = FlowAction::where('campaign_id',$campid)->get()->toarray();
-        // dd($flow);
-        collect($flow)->map(function($item){
-            if($item['linked_type']=='App\Models\ChannelType')
-            {
-                $lib=$this->setLibary($item['linked_id']);
-                $lib->send(1);
-            }
-            else{
-                
-            }
-        });
+    public function sendData($campid,$flowid)
+    {
+        $flow = FlowAction::where('campaign_id',$campid)->where('id',$flowid)->first()->toarray();
+        if($flow['linked_type']=='App\Models\Condition')
+        {
+            $flow = FlowAction::where('campaign_id',$campid)->where('parent_id',$flow['id'])->first()->toarray();
+            $this->sendData($campid,$flow);
+        }
+        else
+        {
+            dd($flow['linked_id']);
+            $lib=$this->setLibary($flow['linked_id']);
+            $lib->send(1);
+        }
     }
 
+ 
 
     public function setLibary($channel)
     {
