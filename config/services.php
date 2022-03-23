@@ -36,4 +36,9 @@ return [
         'password'=>env('RABBITMQ_PASSWORD','guest'),
     ],
 
+    'msg91'=>[
+        'session_id'=>'',
+        'jwt_secret'=>'secret',
+        'jwt_token'=>''
+    ],
 ];

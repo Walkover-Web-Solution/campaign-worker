@@ -8,7 +8,7 @@ class SmsLib
 {
     public function send($input)
     {
-        $operation = 'sms/send';
+        $operation = 'send';
         return $this->makeAPICAll($operation, $input, 'post');
     }
 
@@ -27,30 +27,7 @@ class SmsLib
 
     public function makeAPICAll($operation, $input = [], $method = 'get')
     {
-        $company = request()->company;
-        $jwt = array(
-            'company' => array(
-                'id' => $company->ref_id,
-                'username' => $company->name,
-                'email' => $company->email,
-                ''
-            ),
-            'need_validation' => true
-        );
-        if (!empty(request()->user)) {
-            $user = request()->user;
-            $jwt['user'] = array(
-                'id' => $user->ref_id,
-                'username' => $user->name,
-                'email' => $user->email
-            );
-            $jwt['need_validation'] = false;
-        }
-        if (request()->header('token')) {
-            $jwt['need_validation'] = false; // run case handle,
-        }
-        $jwt['ip'] = request()->ip;
-        $authorization = JWTEncode($jwt);
+        $authorization = config('msg91.jwt_token');
 
         $tempOption = 'TIMEOUT';
         $tempValue = 100;
@@ -59,8 +36,10 @@ class SmsLib
             $tempValue = json_encode($input);
         }
 
-        $host = env('SMS_HOST_URL');
+        $host = env('EMAIl_HOST_URL');
         $endpoint = $host . $operation;
+
+        $jwt = JWTDecode($authorization);
 
         $logData = array(
             'action' => 'api-call',
@@ -79,8 +58,11 @@ class SmsLib
             ->asJsonResponse()
             ->$method();
 
+        dd($res);
+
         $logData['response'] = json_encode($res);
         $logData = (object)$logData;
+
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
@@ -105,6 +87,7 @@ class SmsLib
             throw new \Exception($errorMsg, 1);
         }
 
+
         if (isset($res->type) && $res->type == 'error') {
             if (isset($res->message)) {
                 throw new \Exception($res->message);
@@ -114,6 +97,7 @@ class SmsLib
             }
             throw new \Exception(json_encode($res));
         }
+
 
         if (isset($res->status) && $res->status == 'fail') {
             $errors = [];

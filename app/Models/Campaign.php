@@ -58,4 +58,8 @@ class Campaign extends Model
     {
         return $this->hasMany(CampaignReport::class, 'campaign_id');
     }
+    
+    public function company(){
+        return $this->belongsTo(Company::class,'company_id');
+    }
 }
