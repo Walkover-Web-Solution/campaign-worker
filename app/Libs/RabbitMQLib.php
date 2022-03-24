@@ -46,8 +46,10 @@ class RabbitMQLib{
 		while ($this->channel->is_open()) {
 		    $this->channel->wait();
 		}
+	}
 
-
+    public function putInFailedQueue($queue,$data){
+		$this->enqueue($queue,$data);
 	}
 
 	function __destruct() {

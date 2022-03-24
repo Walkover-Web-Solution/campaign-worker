@@ -46,26 +46,31 @@ class RunSmsCampaignConsumer extends Command
 
     public function decodedData($msg)
     {
+        try {
+            $message = json_decode($msg->getBody(), true);
+            $obj = $message['data']['command'];
+            $input = [];
+            $str = json_decode(mb_substr($obj, 53, 109));
+            /**
+             * generating the token
+             */
 
-        $message = json_decode($msg->getBody(), true);
-        $obj = $message['data']['command'];
-        $input = [];
-        $str = json_decode(mb_substr($obj, 53, 109));
-        /**
-         * generating the token
-         */
-
-        $campaign = Campaign::find($str->campaign_id);
-        $input['company'] = $campaign->company;
-       config(['msg91.jwt_token' => createJWTToken($input)]);
+            $campaign = Campaign::find($str->campaign_id);
+            $input['company'] = $campaign->company;
+            config(['msg91.jwt_token' => createJWTToken($input)]);
 
 
-        $obj = new ChannelService();
-        $obj->sendData(
-            $str->campaign_id,
-            $str->flow_action_id,
-            $str->mongo_id,
-            $str->action_log_id
-        );
+            $obj = new ChannelService();
+            $obj->sendData(
+                $str->campaign_id,
+                $str->flow_action_id,
+                $str->mongo_id,
+                $str->action_log_id
+            );
+        } catch (\Exception $e) {
+
+            $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
+        }
+        $msg->ack();
     }
 }

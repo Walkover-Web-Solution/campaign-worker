@@ -69,7 +69,7 @@ class ChannelService
                 ActionLog::where('campaign_id', $campid)->where('flow_action_id', $flowid)->update(['ref_id' => $res->message]);
             else {
             }
-            dd("hello");
+            return;
         }
     }
 
