@@ -8,7 +8,7 @@ class SmsLib
 {
     public function send($input)
     {
-        $operation = 'send';
+        $operation = 'flow';
         return $this->makeAPICAll($operation, $input, 'post');
     }
 
@@ -28,7 +28,6 @@ class SmsLib
     public function makeAPICAll($operation, $input = [], $method = 'get')
     {
         $authorization = config('msg91.jwt_token');
-
         $tempOption = 'TIMEOUT';
         $tempValue = 100;
         if ($method == 'get' && strpos($operation, 'email') === false) {
@@ -36,32 +35,16 @@ class SmsLib
             $tempValue = json_encode($input);
         }
 
-        $host = env('EMAIl_HOST_URL');
+        $host = env('SMS_HOST_URL');
         $endpoint = $host . $operation;
 
         $jwt = JWTDecode($authorization);
 
-        $logData = array(
-            'action' => 'api-call',
-            'endpoint' => $endpoint,
-            'payload' => json_encode($input),
-            'method' => $method,
-            'authorization' => $authorization,
-            'decoded_authorization' => $jwt
-        );
-
-        $res = Curl::to($endpoint)
+         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
-            ->withOption($tempOption, $tempValue)
             ->withData($input)
             ->asJson()
-            ->asJsonResponse()
-            ->$method();
-
-        dd($res);
-
-        $logData['response'] = json_encode($res);
-        $logData = (object)$logData;
+            ->post();
 
 
         if (isset($res->hasError) && !empty($res->hasError)) {
@@ -115,6 +98,7 @@ class SmsLib
         if (isset($res->msgType) && $res->msgType == 'error') {
             throw new \Exception($res->msg, 1);
         }
+
         return $res;
     }
 }

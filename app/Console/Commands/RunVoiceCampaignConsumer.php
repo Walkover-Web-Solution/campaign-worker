@@ -14,7 +14,7 @@ class RunVoiceCampaignConsumer extends Command
      *
      * @var string
      */
-    protected $signature = 'command:name';
+    protected $signature = 'voice:consume';
 
     /**
      * The console command description.

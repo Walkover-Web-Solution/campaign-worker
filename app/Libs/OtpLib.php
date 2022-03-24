@@ -41,14 +41,6 @@ class OtpLib
 
         $jwt = JWTDecode($authorization);
 
-        $logData = array(
-            'action' => 'api-call',
-            'endpoint' => $endpoint,
-            'payload' => json_encode($input),
-            'method' => $method,
-            'authorization' => $authorization,
-            'decoded_authorization' => $jwt
-        );
 
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
@@ -59,10 +51,6 @@ class OtpLib
             ->$method();
 
         dd($res);
-
-        $logData['response'] = json_encode($res);
-        $logData = (object)$logData;
-
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';

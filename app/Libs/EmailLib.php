@@ -21,7 +21,7 @@ class EmailLib
             $operation = 'email/templates/' . $templateId;
         }
         $operation = $operation . '?status_id=2'; // only fetch verified one
-        // return $this->makeAPICAll($operation);
+        return $this->makeAPICAll($operation);
     }
 
     public function makeAPICAll($operation, $input = [], $method = 'get')
@@ -35,19 +35,10 @@ class EmailLib
             $tempValue = json_encode($input);
         }
 
-        $host = env('EMAIl_HOST_URL');
+        $host = env('EMAIL_HOST_URL');
         $endpoint = $host . $operation;
 
         $jwt = JWTDecode($authorization);
-
-        $logData = array(
-            'action' => 'api-call',
-            'endpoint' => $endpoint,
-            'payload' => json_encode($input),
-            'method' => $method,
-            'authorization' => $authorization,
-            'decoded_authorization' => $jwt
-        );
 
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
@@ -56,12 +47,6 @@ class EmailLib
             ->asJson()
             ->asJsonResponse()
             ->$method();
-
-        dd($res);
-
-        $logData['response'] = json_encode($res);
-        $logData = (object)$logData;
-
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';

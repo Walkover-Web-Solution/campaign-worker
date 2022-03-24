@@ -49,15 +49,15 @@ class RunSmsCampaignConsumer extends Command
 
         $message = json_decode($msg->getBody(), true);
         $obj = $message['data']['command'];
+        $input = [];
         $str = json_decode(mb_substr($obj, 53, 109));
-
         /**
          * generating the token
          */
+
         $campaign = Campaign::find($str->campaign_id);
-        $input = [];
         $input['company'] = $campaign->company;
-        config(['msg91.jwt_token' => createJWTToken($input)]);
+       config(['msg91.jwt_token' => createJWTToken($input)]);
 
 
         $obj = new ChannelService();

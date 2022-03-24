@@ -8,6 +8,7 @@ use App\Libs\OtpLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\ActionLog;
 use App\Models\Campaign;
 use App\Models\Company;
 use App\Models\FlowAction;
@@ -40,9 +41,9 @@ class ChannelService
              */
             $data = $this->mongo->collection('run_campaign_data')->findOne(collect($mongoid));
             $md = json_decode(json_encode($data['data']));
-            $lib = $this->setLibary($flow['linked_id']);    //geting the object of the library
+            $lib = $this->setLibrary($flow['linked_id']);    //geting the object of the library
             $temp = Template::where('flow_action_id', $flow['id'])->first();
-
+            $flag = 0;
             if ($flow['linked_id'] == 1) {
                 $data = array(
                     'to' => $md[0]->to,
@@ -52,19 +53,29 @@ class ChannelService
                     'variables' => $md[0]->variables
 
                 );
+                $flag = 1;
             } else {
                 $data = [
-                    'variables' => $md[0]->variables,
-                    'mobile' => $md[0]->mobile
+                    "flow_id" => "611f7d5744b035602c46cb47",
+                    'recipients' => $md[0]->mobiles
                 ];
+                $flag = 2;
             }
-            $lib->send($data);
+            $res = $lib->send($data);
+            if ($flag == 1) {
+
+            }
+            else if ($flag = 2)
+                ActionLog::where('campaign_id', $campid)->where('flow_action_id', $flowid)->update(['ref_id' => $res->message]);
+            else {
+            }
+            dd("hello");
         }
     }
 
 
 
-    public function setLibary($channel)
+    public function setLibrary($channel)
     {
         $email = 1;
         $sms = 2;
