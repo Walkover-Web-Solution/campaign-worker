@@ -32,7 +32,7 @@ return [
     'rabbitmq'=>[
         'host'=>env('RABBITMQ_HOST','localhost'),
         'port'=>env('RABBITMQ_PORT',5672),
-        'username'=>env('RABBITMQ_USERNAME','guest'),
+        'username'=>env('RABBITMQ_USER','guest'),
         'password'=>env('RABBITMQ_PASSWORD','guest'),
     ],
 
