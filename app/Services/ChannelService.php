@@ -32,7 +32,6 @@ class ChannelService
 
     public function sendData($actionLogId)
     {
-        Log::debug('For ' . $actionLogId);
         $action_log = ActionLog::where('id', $actionLogId)->first();
 
         /**
@@ -44,14 +43,6 @@ class ChannelService
 
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
 
-
-        // if ($flow['linked_type'] == 'App\Models\Condition') {
-        //     $flow = FlowAction::where('campaign_id', $campid)->where('parent_id', $flow->id)->first()->toarray();
-        //     $this->sendData($campid, $flow, $mongoid, $actionid);
-        // } else {
-        /**
-         * geting the data from the mongoDB
-         */
         $data = $this->mongo->collection('run_campaign_data')->findOne(collect($action_log->mongo_id));
         $md = json_decode(json_encode($data['data']));
         $lib = $this->setLibrary($flow['linked_id']);    //geting the object of the library
@@ -103,30 +94,10 @@ class ChannelService
                 "mongo_id" => $action_log->mongo_id
             ];
             $action_log = $campaign->actionLogs()->create($actionLogData);
-            Log::debug('Found next action log ' . $actionLogId);
             $this->sendData($action_log->id);
         } else {
             return;
         }
-        // while ($flow['linked_type'] == 'App\Models\Condition') {
-        //     $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('parent_id', $flow->id)->first()->toarray();
-        // if (empty($flow)) {
-        //     return;
-        // }
-        // }
-        // Log::debug('Found next action log ' . $flow->id);
-        // if (!empty($flow)) {
-        // $actionLogData = [
-        //     "no_of_records" => $action_log->no_of_records,
-        //     "ip" => request()->ip(),
-        //     "status" => "",
-        //     "reason" => "",
-        //     "ref_id" => "",
-        //     "flow_action_id" => $flow->id,
-        //     "mongo_id" => $action_log->mongo_id
-        // ];
-        // $action_log = $campaign->actionLogs()->create($actionLogData);
-        // }
 
     }
 
