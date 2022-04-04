@@ -8,7 +8,7 @@ class SmsLib
 {
     public function send($input)
     {
-        $operation = 'flow';
+        $operation = 'campaign/send?action=sendsms';
         return $this->makeAPICAll($operation, $input, 'post');
     }
 
@@ -44,8 +44,8 @@ class SmsLib
             ->withHeader('authorization: ' . $authorization)
             ->withData($input)
             ->asJson()
+            ->asJsonResponse()
             ->post();
-
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
