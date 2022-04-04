@@ -24,15 +24,16 @@ class RunEmailCampaignConsumer extends Command
      */
     protected $description = 'Email consume command';
 
+    protected $rabbitmq;
+
     /**
      * Create a new command instance.
      *
      * @return void
      */
-    public function __construct(RabbitMQLib $rabbitmq)
+    public function __construct()
     {
         parent::__construct();
-        $this->rabbitmq = $rabbitmq;
     }
 
     /**
@@ -42,6 +43,9 @@ class RunEmailCampaignConsumer extends Command
      */
     public function handle()
     {
+        if(empty($this->rabbitmq)){
+            $this->rabbitmq = new RabbitMQLib;
+        }
         $this->rabbitmq->dequeue('run_email_campaigns', array($this, 'decodedData'));
     }
     public function decodedData($msg)
@@ -63,6 +67,9 @@ class RunEmailCampaignConsumer extends Command
             );
         } catch (\Exception $e) {
 
+            if(empty($this->rabbitmq)){
+                $this->rabbitmq = new RabbitMQLib;
+            }
             $this->rabbitmq->putInFailedQueue('failed_run_email_campaigns', $msg->getBody());
         }
         $msg->ack();
