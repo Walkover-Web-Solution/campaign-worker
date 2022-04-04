@@ -18,7 +18,7 @@ class RabbitMQJob implements ShouldQueue
      *
      * @return void
      */
-    protected $data;
+    public $data;
     public function __construct($data)
     {
         $this->data=$data;
@@ -31,6 +31,6 @@ class RabbitMQJob implements ShouldQueue
      */
     public function handle()
     {
-        dd($this->data);
+        //
     }
 }

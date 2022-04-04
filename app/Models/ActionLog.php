@@ -16,7 +16,12 @@ class ActionLog extends Model
         'reason',
         'ip',
         'ref_id',
-        'flow_action_id'
+        'flow_action_id',
+        'mongo_id'
+    ];
+
+    protected $casts = [
+        'mongo_id' => 'json',
     ];
 
     protected $hidden = array(

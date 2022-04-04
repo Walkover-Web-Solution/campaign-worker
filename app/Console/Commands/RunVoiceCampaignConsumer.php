@@ -51,26 +51,17 @@ class RunVoiceCampaignConsumer extends Command
     public function decodedData($msg)
     {
 
-        $message = json_decode($msg->getBody(), true);
-        $obj = $message['data']['command'];
-        $str = json_decode(mb_substr($obj, 53, 109));
+        try {
+            $message = json_decode($msg->getBody(), true);
+            $obj = $message['data']['command'];
+            $action_log_id = unserialize($obj)->data->action_log_id;
+            $obj = new ChannelService();
 
-        /**
-         * generating the token
-         */
-        $campaign = Campaign::find($str->campaign_id);
-        $input = [];
-        $input['company'] = $campaign->company;
-        config(['msg91.jwt_token' => createJWTToken($input)]);
+            $obj->sendData($action_log_id);
+        } catch (\Exception $e) {
 
-
-        $str = json_decode(mb_substr($obj, 53, 109));
-        $obj = new ChannelService();
-        $obj->sendData(
-            $str->campaign_id,
-            $str->flow_action_id,
-            $str->mongo_id->_id,
-            $str->action_log_id
-        );
+            $this->rabbitmq->putInFailedQueue('failed_run_voice_campaigns', $msg->getBody());
+        }
+        $msg->ack();
     }
 }
