@@ -39,39 +39,45 @@ class ChannelService
          */
         $campaign = Campaign::find($action_log->campaign_id);
         $input['company'] = $campaign->company;
+
         config(['msg91.jwt_token' => createJWTToken($input)]);
 
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
+        $data = $this->mongo->collection('run_campaign_data')->find([
+            'action_log_id' => $action_log->id
+        ]);
 
-        $data = $this->mongo->collection('run_campaign_data')->findOne(collect($action_log->mongo_id));
-        $md = json_decode(json_encode($data['data']));
+        $md = json_decode(json_encode($data));
         $lib = $this->setLibrary($flow['linked_id']);    //geting the object of the library
         $temp = Template::where('flow_action_id', $flow['id'])->first();
+
         $flag = 0;
         if ($flow['linked_id'] == 1) {
             $data = array(
-                'to' => $md[0]->to,
-                'from' => $md[0]->to,
-                'cc' => $md[0]->cc,
-                'bcc' => $md[0]->bcc,
-                'variables' => $md[0]->variables
+                'to' => $md[0]->data->to,
+                'from' => $md[0]->data->from,
+                'cc' => $md[0]->data->cc,
+                'bcc' => $md[0]->data->bcc,
+                'variables' => $md[0]->data->variables,
+                'template_id' => $temp->template_id
             );
             $flag = 1;
-        } else {
+        } else if ($flow['linked_id'] == 2) {
             $data = [
-                "flow_id" => "611f7d5744b035602c46cb47",
-                'recipients' => $md[0]->mobiles
+                "flow_id" => $temp->template_id,
+                'recipients' => $md[0]->data->mobiles
             ];
             $flag = 2;
+        } else {
+            //611f7d5744b035602c46cb47
         }
-
         $res = $lib->send($data);
-
         if ($flag == 1) {
-            //
+            $action = ActionLog::where('id', $action_log->id)->first();
+            $action->update(['ref_id' => $res->data->unique_id]);
         } else if ($flag = 2) {
             $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $res->message]);
+            $action->update(['ref_id' => $res->data]);
         } else {
             //
         }
@@ -98,7 +104,6 @@ class ChannelService
         } else {
             return;
         }
-
     }
 
 

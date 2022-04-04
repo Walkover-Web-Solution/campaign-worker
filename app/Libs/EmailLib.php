@@ -16,9 +16,9 @@ class EmailLib
 
     public function getTemplate($templateId = '')
     {
-        $operation = 'email/templates';
+        $operation = 'templates';
         if (!empty($templateId)) {
-            $operation = 'email/templates/' . $templateId;
+            $operation = 'templates/' . $templateId;
         }
         $operation = $operation . '?status_id=2'; // only fetch verified one
         return $this->makeAPICAll($operation);
@@ -27,7 +27,6 @@ class EmailLib
     public function makeAPICAll($operation, $input = [], $method = 'get')
     {
         $authorization = config('msg91.jwt_token');
-
         $tempOption = 'TIMEOUT';
         $tempValue = 100;
         if ($method == 'get' && strpos($operation, 'email') === false) {
@@ -39,14 +38,13 @@ class EmailLib
         $endpoint = $host . $operation;
 
         $jwt = JWTDecode($authorization);
-
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
             ->withOption($tempOption, $tempValue)
             ->withData($input)
             ->asJson()
             ->asJsonResponse()
-            ->$method();
+            ->post();
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
