@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class ActionLog extends Model
 {
     use HasFactory;
-
     protected $fillable = [
         'campaign_id',
         'no_of_records',
@@ -17,17 +16,14 @@ class ActionLog extends Model
         'ip',
         'ref_id',
         'flow_action_id',
-        'mongo_id'
+        'mongo_id',
+        'created_at',
+        'updated_at'
     ];
 
     protected $casts = [
         'mongo_id' => 'json',
     ];
-
-    protected $hidden = array(
-        'created_at',
-        'updated_at',
-    );
 
     /**
      * Get all of the campaignReport for the ActionLog

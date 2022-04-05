@@ -62,40 +62,36 @@ class ChannelService
                 return $value;
             }
         });
-       
+
         $variables = array_filter($variables->toArray());
 
         $flag = 0;
         $obj = new \stdClass();
         $obj->data = [];
-        collect($md[0]->data)->map(function ($val, $key) use ($obj, $flow) {
-
-            if (empty($obj->data))
-                $obj->data = [];
-            if ($key == 'emails' && $flow['channel_id'] == 1) {
-                array_push($obj->data, $val);
-            } else if ($key == 'mobiles' && $flow['channel_id'] == 2) {
-                array_push($obj->data, $val);
-            }
-        });
-
-
-        if ($flow['channel_id'] == 1) {
-            $data = array(
-                'variables' => $variables,
-                'template_id' => $temp->template_id
-            );
-            $data = array_merge(collect($obj->data[0])->toArray(), $data);
-            $flag = 1;
-        } else if ($flow['channel_id'] == 2) {
-            $data = [
-                "flow_id" => $temp->template_id,
-                'recipients' => $obj->data[0]
-            ];
-            $flag = 2;
-        } else {
-            //611f7d5744b035602c46cb47
+        $mongo_data = collect($md[0]->data);
+        switch ($flow['channel_id']) {
+            case 1:
+                array_push($obj->data, $mongo_data['emails']);
+                $data = array(
+                    'variables' => $variables,
+                    'template_id' => $temp->template_id
+                );
+                $data = array_merge(collect($obj->data[0])->toArray(), $data);
+                $flag = 1;
+                break;
+            case 2:
+                array_push($obj->data, $mongo_data['mobiles']);
+                $data = [
+                    "flow_id" => $temp->template_id,
+                    'recipients' => $obj->data[0]
+                ];
+                $flag = 2;
+                break;
+            case 3:
+                array_push($obj->data, $mongo_data['mobile']); //for otp
+                break;
         }
+
         dd($data);
         $res = $lib->send($data);
         if ($flag == 1) {
@@ -107,7 +103,10 @@ class ChannelService
         } else {
             //
         }
-
+        //1. get all the codition according to channel
+        //2. compare with the module data and response from $res;
+        //3. fetch the flow_action according to the condition comes from step 2
+        //goto 4th step
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $flow->module_data->op_success)->first();
 
         if (!empty($flow)) {
@@ -122,9 +121,9 @@ class ChannelService
                 "mongo_id" => $action_log->mongo_id
             ];
             $action_log = $campaign->actionLogs()->create($actionLogData);
-            $this->sendData($action_log->id);
-        }
-        else{
+            //4. create a job for new action log;
+            //$this->sendData($action_log->id);
+        } else {
             return;
         }
     }

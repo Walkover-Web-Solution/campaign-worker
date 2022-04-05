@@ -16,12 +16,16 @@ class Campaign extends Model
         'is_active',
         'configurations',
         'meta',
-        'slug'
+        'slug',
+        'style',
+        'module_data'
     ];
 
     protected $casts = array(
         'meta' => 'object',
         'configurations' => 'object',
+        'style' => 'json',
+        'module_data' => 'json'
     );
 
 
@@ -34,6 +38,32 @@ class Campaign extends Model
         'deleted_at',
         'meta'
     );
+
+    /**
+     * Get the user that owns the Campaign
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Get the company that owns the Campaign
+     *
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    /**
+     * Get the token that owns the Campaign
+     *
+     */
+    public function token()
+    {
+        return $this->belongsTo(Token::class, 'token_id');
+    }
 
     /**
      * Get all of the actionLogs for the Campaign
@@ -58,8 +88,5 @@ class Campaign extends Model
     {
         return $this->hasMany(CampaignReport::class, 'campaign_id');
     }
-    
-    public function company(){
-        return $this->belongsTo(Company::class,'company_id');
-    }
+
 }

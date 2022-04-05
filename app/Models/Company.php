@@ -16,22 +16,6 @@ class Company extends Model
         'authkey'
     ];
 
-    /***
-     * generating  the auth key for company
-     */
-    public static function boot(){
-        parent::boot();
-        static::creating(function($company){
-             $authkey=md5(uniqid(microtime(true).mt_Rand(), true));
-             $company->authkey=$authkey;
-        });
-        static::created(function($company){
-           $company->tokens()->create([
-             'name'=>'Default Token'
-           ]);
-        });
-    }
-
     /**
      * The users that belong to the Company
      */
