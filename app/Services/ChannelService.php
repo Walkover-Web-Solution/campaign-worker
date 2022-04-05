@@ -32,6 +32,7 @@ class ChannelService
 
     public function sendData($actionLogId)
     {
+
         $action_log = ActionLog::where('id', $actionLogId)->first();
 
         /**
@@ -48,29 +49,54 @@ class ChannelService
         ]);
 
         $md = json_decode(json_encode($data));
-        $lib = $this->setLibrary($flow['linked_id']);    //geting the object of the library
+        $lib = $this->setLibrary($flow['channel_id']);    //geting the object of the library
         $temp = Template::where('flow_action_id', $flow['id'])->first();
 
+        $var = collect($md[0]->data);
+        unset($var['emails']);
+        unset($var['mobiles']);
+        unset($var['mobile']);
+
+        $variables = collect($var)->map(function ($value, $key) use ($temp) {
+            if (in_array($key, $temp->variables)) {
+                return $value;
+            }
+        });
+       
+        $variables = array_filter($variables->toArray());
+
         $flag = 0;
-        if ($flow['linked_id'] == 1) {
+        $obj = new \stdClass();
+        $obj->data = [];
+        collect($md[0]->data)->map(function ($val, $key) use ($obj, $flow) {
+
+            if (empty($obj->data))
+                $obj->data = [];
+            if ($key == 'emails' && $flow['channel_id'] == 1) {
+                array_push($obj->data, $val);
+            } else if ($key == 'mobiles' && $flow['channel_id'] == 2) {
+                array_push($obj->data, $val);
+            }
+        });
+
+
+        if ($flow['channel_id'] == 1) {
             $data = array(
-                'to' => $md[0]->data->to,
-                'from' => $md[0]->data->from,
-                'cc' => $md[0]->data->cc,
-                'bcc' => $md[0]->data->bcc,
-                'variables' => $md[0]->data->variables,
+                'variables' => $variables,
                 'template_id' => $temp->template_id
             );
+            $data = array_merge(collect($obj->data[0])->toArray(), $data);
             $flag = 1;
-        } else if ($flow['linked_id'] == 2) {
+        } else if ($flow['channel_id'] == 2) {
             $data = [
                 "flow_id" => $temp->template_id,
-                'recipients' => $md[0]->data->mobiles
+                'recipients' => $obj->data[0]
             ];
             $flag = 2;
         } else {
             //611f7d5744b035602c46cb47
         }
+        dd($data);
         $res = $lib->send($data);
         if ($flag == 1) {
             $action = ActionLog::where('id', $action_log->id)->first();
@@ -82,26 +108,23 @@ class ChannelService
             //
         }
 
-        $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('parent_id', $flow->id)->first();
+        $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $flow->module_data->op_success)->first();
+
         if (!empty($flow)) {
-            while ($flow['linked_type'] == 'App\Models\Condition') {
-                $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('parent_id', $flow->id)->first();
-                if (empty($flow)) {
-                    return;
-                }
-            }
             $actionLogData = [
+                "campaign_id" => $action_log->campaign_id,
                 "no_of_records" => $action_log->no_of_records,
                 "ip" => request()->ip(),
                 "status" => "",
                 "reason" => "",
                 "ref_id" => "",
-                "flow_action_id" => $flow->id,
+                "flow_action_id" => $flow->module_data->op_success,
                 "mongo_id" => $action_log->mongo_id
             ];
             $action_log = $campaign->actionLogs()->create($actionLogData);
             $this->sendData($action_log->id);
-        } else {
+        }
+        else{
             return;
         }
     }
