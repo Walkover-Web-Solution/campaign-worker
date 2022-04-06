@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
 use App\Libs\OtpLib;
+use App\Libs\RabbitMQLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
 use App\Models\ActionLog;
 use App\Models\Campaign;
+use App\Models\ChannelType;
 use App\Models\Company;
 use App\Models\FlowAction;
 use App\Models\Template;
@@ -25,9 +27,11 @@ use MongoDB\Model\BSONDocument;
 class ChannelService
 {
     protected $mongo;
+    protected $rabbitmq;
     public function __construct()
     {
         $this->mongo = new MongoDBLib;
+         $this->rabbitmq = new RabbitMQLib;
     }
 
     public function sendData($actionLogId)
@@ -69,6 +73,8 @@ class ChannelService
         $obj = new \stdClass();
         $obj->data = [];
         $mongo_data = collect($md[0]->data);
+        $channel = ChannelType::where('id', $flow['channel_id'])->first();
+        $conditions = $channel->conditions()->pluck('name')->toArray();
         switch ($flow['channel_id']) {
             case 1:
                 array_push($obj->data, $mongo_data['emails']);
@@ -76,7 +82,12 @@ class ChannelService
                     'variables' => $variables,
                     'template_id' => $temp->template_id
                 );
+                $next_flow_id = null;
                 $data = array_merge(collect($obj->data[0])->toArray(), $data);
+                if (!empty($flow->module_data->op_success))
+                    $next_flow_id = $flow->module_data->op_success;
+                else if (!empty($flow->module_data->op_failure))
+                    $next_flow_id = $flow->module_data->op_failure;
                 $flag = 1;
                 break;
             case 2:
@@ -91,41 +102,53 @@ class ChannelService
                 array_push($obj->data, $mongo_data['mobile']); //for otp
                 break;
         }
+        // $res = $lib->send($data);
+        // if ($flag == 1) {
+        //     $action = ActionLog::where('id', $action_log->id)->first();
+        //     $action->update(['ref_id' => $res->data->unique_id]);
+        // } else if ($flag = 2) {
+        //     $action = ActionLog::where('id', $action_log->id)->first();
+        //     $action->update(['ref_id' => $res->data]);
+        // } else {
+        //     //
+        // }
+        $res = ucfirst('success');
+        if (in_array($res, $conditions) && $next_flow_id != null) {
+            $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+            if (!empty($flow)) {
+                $actionLogData = [
+                    "campaign_id" => $action_log->campaign_id,
+                    "no_of_records" => $action_log->no_of_records,
+                    "ip" => request()->ip(),
+                    "status" => "",
+                    "reason" => "",
+                    "ref_id" => "",
+                    "flow_action_id" => $flow->module_data->op_success,
+                    "mongo_id" => $action_log->mongo_id
+                ];
+                $actionLog = $campaign->actionLogs()->create($actionLogData);
+                if ($action_log->mongo_id->filled('data')) {
+                    $data = [
+                        'action_log_id' => $actionLog->id,
+                        'data' => $action_log->mongo_id
+                    ];
+                    // insert into mongo
+                    $mongo_id = $this->mongo->collection('run_campaign_data')->insertOne($data);
+                }
 
-        dd($data);
-        $res = $lib->send($data);
-        if ($flag == 1) {
-            $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $res->data->unique_id]);
-        } else if ($flag = 2) {
-            $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $res->data]);
-        } else {
-            //
+
+                $actionLog->mongo_id = $mongo_id;
+                $actionLog->save();
+
+                \JOB::processRunCampaign($actionLog);
+            }
         }
+
         //1. get all the codition according to channel
         //2. compare with the module data and response from $res;
         //3. fetch the flow_action according to the condition comes from step 2
         //goto 4th step
-        $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $flow->module_data->op_success)->first();
-
-        if (!empty($flow)) {
-            $actionLogData = [
-                "campaign_id" => $action_log->campaign_id,
-                "no_of_records" => $action_log->no_of_records,
-                "ip" => request()->ip(),
-                "status" => "",
-                "reason" => "",
-                "ref_id" => "",
-                "flow_action_id" => $flow->module_data->op_success,
-                "mongo_id" => $action_log->mongo_id
-            ];
-            $action_log = $campaign->actionLogs()->create($actionLogData);
-            //4. create a job for new action log;
-            //$this->sendData($action_log->id);
-        } else {
-            return;
-        }
+        return;
     }
 
 
