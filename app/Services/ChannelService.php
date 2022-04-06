@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
 use App\Libs\OtpLib;
@@ -31,14 +32,13 @@ class ChannelService
     public function __construct()
     {
         $this->mongo = new MongoDBLib;
-         $this->rabbitmq = new RabbitMQLib;
+        $this->rabbitmq = new RabbitMQLib;
     }
 
     public function sendData($actionLogId)
     {
 
         $action_log = ActionLog::where('id', $actionLogId)->first();
-
         /**
          * generating the token
          */
@@ -60,7 +60,6 @@ class ChannelService
         unset($var['emails']);
         unset($var['mobiles']);
         unset($var['mobile']);
-
         $variables = collect($var)->map(function ($value, $key) use ($temp) {
             if (in_array($key, $temp->variables)) {
                 return $value;
@@ -96,6 +95,11 @@ class ChannelService
                     "flow_id" => $temp->template_id,
                     'recipients' => $obj->data[0]
                 ];
+                $next_flow_id = null;
+                if (!empty($flow->module_data->op_success))
+                    $next_flow_id = $flow->module_data->op_success;
+                else if (!empty($flow->module_data->op_failure))
+                    $next_flow_id = $flow->module_data->op_failure;
                 $flag = 2;
                 break;
             case 3:
@@ -112,8 +116,10 @@ class ChannelService
         } else {
             //
         }
-        $res = ucfirst('success');
-        if (in_array($res, $conditions) && $next_flow_id != null) {
+
+        $status = ucfirst($res->status);
+
+        if (in_array($status, $conditions) && !empty($next_flow_id)) {
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
             if (!empty($flow)) {
                 $actionLogData = [
@@ -123,24 +129,46 @@ class ChannelService
                     "status" => "",
                     "reason" => "",
                     "ref_id" => "",
-                    "flow_action_id" => $flow->module_data->op_success,
+                    "flow_action_id" => $next_flow_id,
                     "mongo_id" => $action_log->mongo_id
                 ];
                 $actionLog = $campaign->actionLogs()->create($actionLogData);
-                if ($action_log->mongo_id->filled('data')) {
-                    $data = [
-                        'action_log_id' => $actionLog->id,
-                        'data' => $action_log->mongo_id
-                    ];
-                    // insert into mongo
-                    $mongo_id = $this->mongo->collection('run_campaign_data')->insertOne($data);
-                }
+
+            //    dd( json_decode(json_encode($mongo_data)));
+                $data = [
+                    'action_log_id' => $actionLog->id,
+                    'data' => json_decode(json_encode($mongo_data))
+                ];
+
+                // insert into mongo
+                $mongo_id = $this->mongo->collection('run_campaign_data')->insertOne($data);
 
 
                 $actionLog->mongo_id = $mongo_id;
                 $actionLog->save();
+                $channel_id = FlowAction::where('id', $actionLogData['flow_action_id'])->pluck('channel_id')->first();
 
-                \JOB::processRunCampaign($actionLog);
+                switch ($channel_id) {
+                    case 1:
+                        $queue = 'run_email_campaigns';
+                        break;
+                    case 2:
+                        $queue = 'run_sms_campaigns';
+                        break;
+                    case 3:
+                        $queue = 'run_otp_campaigns';
+                        break;
+                    case 4:
+                        $queue = 'run_whastapp_campaigns';
+                        break;
+                    case 5:
+                        $queue = 'run_voice_campaigns';
+                        break;
+                }
+
+                $input = new \stdClass();
+                $input->action_log_id =  $actionLog->id;
+                RabbitMQJob::dispatch($input)->onQueue($queue);
             }
         }
 
