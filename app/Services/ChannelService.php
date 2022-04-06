@@ -102,16 +102,16 @@ class ChannelService
                 array_push($obj->data, $mongo_data['mobile']); //for otp
                 break;
         }
-        // $res = $lib->send($data);
-        // if ($flag == 1) {
-        //     $action = ActionLog::where('id', $action_log->id)->first();
-        //     $action->update(['ref_id' => $res->data->unique_id]);
-        // } else if ($flag = 2) {
-        //     $action = ActionLog::where('id', $action_log->id)->first();
-        //     $action->update(['ref_id' => $res->data]);
-        // } else {
-        //     //
-        // }
+        $res = $lib->send($data);
+        if ($flag == 1) {
+            $action = ActionLog::where('id', $action_log->id)->first();
+            $action->update(['ref_id' => $res->data->unique_id]);
+        } else if ($flag = 2) {
+            $action = ActionLog::where('id', $action_log->id)->first();
+            $action->update(['ref_id' => $res->data]);
+        } else {
+            //
+        }
         $res = ucfirst('success');
         if (in_array($res, $conditions) && $next_flow_id != null) {
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
