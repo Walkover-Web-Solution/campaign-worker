@@ -101,14 +101,14 @@ class ChannelService
         $res = $lib->send($data);
 
         if ($flag == 1) {
-            $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $res->data->unique_id]);
+            $val=$res->data->unique_id;
         } else if ($flag = 2) {
-            $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $res->data]);
+           $val= $res->data;
         } else {
             //
         }
+        $action = ActionLog::where('id', $action_log->id)->first();
+            $action->update(['ref_id' => $val]);
 
         $status = ucfirst($res->status);
         $next_flow_id=null;
