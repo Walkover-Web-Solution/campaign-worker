@@ -44,18 +44,23 @@ class ChannelService
          */
         $campaign = Campaign::find($action_log->campaign_id);
         $input['company'] = $campaign->company;
-
         config(['msg91.jwt_token' => createJWTToken($input)]);
 
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
+
+        /**
+         * Geting the data from mongo
+         */
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $action_log->mongo_id
         ]);
 
         $md = json_decode(json_encode($data));
-        $lib = $this->setLibrary($flow['channel_id']);    //geting the object of the library
-        $temp = Template::where('flow_action_id', $flow['id'])->first();
+        $temp = Template::where('flow_action_id', $flow['id'])->first();  //geting the template information according to flow
 
+        /**
+         * extracting the all the variables from the mongo data
+         */
         $var = collect($md[0]->data);
         unset($var['emails']);
         unset($var['mobiles']);
@@ -65,7 +70,6 @@ class ChannelService
                 return $value;
             }
         });
-
         $variables = array_filter($variables->toArray());
 
         $flag = 0;
@@ -73,8 +77,10 @@ class ChannelService
         $obj->data = [];
         $mongo_data = collect($md[0]->data);
         $channel = ChannelType::where('id', $flow['channel_id'])->first();
-        $conditions = $channel->conditions()->pluck('name')->toArray();
-
+        $conditions = $channel->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
+        /**
+         * generating the request body data according to flow channel id
+         */
         switch ($flow['channel_id']) {
             case 1:
                 array_push($obj->data, $mongo_data['emails']);
@@ -97,21 +103,29 @@ class ChannelService
                 array_push($obj->data, $mongo_data['mobile']); //for otp
                 break;
         }
-
+        /**
+         * Geting the libary object according to the flow channel id to send the data to the microservice
+         */
+        $lib = $this->setLibrary($flow['channel_id']);
         $res = $lib->send($data);
-
+        /**
+         * updateing the responce comes from the microservice into the ref_id of current flow action
+         */
         if ($flag == 1) {
-            $val=$res->data->unique_id;
+            $val = $res->data->unique_id;
         } else if ($flag = 2) {
-           $val= $res->data;
+            $val = $res->data;
         } else {
             //
         }
         $action = ActionLog::where('id', $action_log->id)->first();
-            $action->update(['ref_id' => $val]);
+        $action->update(['ref_id' => $val]);
 
+        /**
+         *  geting the next flow id according to the responce status from microservice
+         */
         $status = ucfirst($res->status);
-        $next_flow_id=null;
+        $next_flow_id = null;
         if ($status == 'Success')
             $next_flow_id = $flow->module_data->op_success;
         else
@@ -132,7 +146,7 @@ class ChannelService
                 $actionLog = $campaign->actionLogs()->create($actionLogData);
 
                 $channel_id = FlowAction::where('id', $actionLogData['flow_action_id'])->pluck('channel_id')->first();
-
+                //selecting the queue name as per the flow channel id
                 switch ($channel_id) {
                     case 1:
                         $queue = 'run_email_campaigns';
@@ -153,14 +167,9 @@ class ChannelService
 
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                RabbitMQJob::dispatch($input)->onQueue($queue);
+                RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job 
             }
         }
-
-        //1. get all the codition according to channel
-        //2. compare with the module data and response from $res;
-        //3. fetch the flow_action according to the condition comes from step 2
-        //goto 4th step
         return;
     }
 
