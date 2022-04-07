@@ -49,7 +49,7 @@ class ChannelService
 
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
         $data = $this->mongo->collection('run_campaign_data')->find([
-            'action_log_id' => $action_log->id
+            'requestId' => $action_log->mongo_id
         ]);
 
         $md = json_decode(json_encode($data));
@@ -74,6 +74,7 @@ class ChannelService
         $mongo_data = collect($md[0]->data);
         $channel = ChannelType::where('id', $flow['channel_id'])->first();
         $conditions = $channel->conditions()->pluck('name')->toArray();
+
         switch ($flow['channel_id']) {
             case 1:
                 array_push($obj->data, $mongo_data['emails']);
@@ -81,12 +82,7 @@ class ChannelService
                     'variables' => $variables,
                     'template_id' => $temp->template_id
                 );
-                $next_flow_id = null;
                 $data = array_merge(collect($obj->data[0])->toArray(), $data);
-                if (!empty($flow->module_data->op_success))
-                    $next_flow_id = $flow->module_data->op_success;
-                else if (!empty($flow->module_data->op_failure))
-                    $next_flow_id = $flow->module_data->op_failure;
                 $flag = 1;
                 break;
             case 2:
@@ -95,18 +91,15 @@ class ChannelService
                     "flow_id" => $temp->template_id,
                     'recipients' => $obj->data[0]
                 ];
-                $next_flow_id = null;
-                if (!empty($flow->module_data->op_success))
-                    $next_flow_id = $flow->module_data->op_success;
-                else if (!empty($flow->module_data->op_failure))
-                    $next_flow_id = $flow->module_data->op_failure;
                 $flag = 2;
                 break;
             case 3:
                 array_push($obj->data, $mongo_data['mobile']); //for otp
                 break;
         }
+
         $res = $lib->send($data);
+
         if ($flag == 1) {
             $action = ActionLog::where('id', $action_log->id)->first();
             $action->update(['ref_id' => $res->data->unique_id]);
@@ -118,7 +111,11 @@ class ChannelService
         }
 
         $status = ucfirst($res->status);
-
+        $next_flow_id=null;
+        if ($status == 'Success')
+            $next_flow_id = $flow->module_data->op_success;
+        else
+            $next_flow_id = $flow->module_data->op_failure;
         if (in_array($status, $conditions) && !empty($next_flow_id)) {
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
             if (!empty($flow)) {
@@ -126,7 +123,7 @@ class ChannelService
                     "campaign_id" => $action_log->campaign_id,
                     "no_of_records" => $action_log->no_of_records,
                     "ip" => request()->ip(),
-                    "status" => "",
+                    "status" => "pending",
                     "reason" => "",
                     "ref_id" => "",
                     "flow_action_id" => $next_flow_id,
@@ -134,18 +131,6 @@ class ChannelService
                 ];
                 $actionLog = $campaign->actionLogs()->create($actionLogData);
 
-            //    dd( json_decode(json_encode($mongo_data)));
-                $data = [
-                    'action_log_id' => $actionLog->id,
-                    'data' => json_decode(json_encode($mongo_data))
-                ];
-
-                // insert into mongo
-                $mongo_id = $this->mongo->collection('run_campaign_data')->insertOne($data);
-
-
-                $actionLog->mongo_id = $mongo_id;
-                $actionLog->save();
                 $channel_id = FlowAction::where('id', $actionLogData['flow_action_id'])->pluck('channel_id')->first();
 
                 switch ($channel_id) {
