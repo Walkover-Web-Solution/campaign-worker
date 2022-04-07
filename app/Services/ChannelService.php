@@ -95,7 +95,8 @@ class ChannelService
                 array_push($obj->data, $mongo_data['mobiles']);
                 $data = [
                     "flow_id" => $temp->template_id,
-                    'recipients' => $obj->data[0]
+                    'recipients' => $obj->data[0],
+                    "short_url" => true
                 ];
                 $flag = 2;
                 break;
@@ -167,7 +168,7 @@ class ChannelService
 
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job 
+                RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
             }
         }
         return;
