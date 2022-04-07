@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Libs;
+
+use App\Jobs\RabbitMQJob;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
@@ -34,7 +36,6 @@ class RabbitMQLib{
 		$this->channel->queue_declare($queue, false, false, false, false);
 		$msg = new AMQPMessage(json_encode($data));
 		$this->channel->basic_publish($msg, '',$queue);
-
 	}
 
 

@@ -30,4 +30,9 @@ class ChannelType extends Model
     {
         return $this->morphMany(FlowAction::class, 'linked');
     }
+
+    public function conditions()
+    {
+        return $this->belongsToMany(Condition::class)->using(ChannelTypeCondition::class);
+    }
 }
