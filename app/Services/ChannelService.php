@@ -174,6 +174,49 @@ class ChannelService
         return;
     }
 
+    public function getReports($actionLogId)
+    {
+        $actionLog = ActionLog::where('id', $actionLogId)->first();
+
+        // create token
+        $campaign = Campaign::where('id', $actionLog->campaign_id)->first();
+        $input['company'] = $campaign->company()->first();
+        config(['msg91.jwt_token' => createJWTToken($input)]);
+
+        $channelId = FlowAction::where('id', $actionLog->flow_action_id)->pluck('channel_id')->first();
+
+        $lib = $this->setLibrary($channelId);
+
+        $data = [];
+        $collection = '';
+        switch ($channelId) {
+            case 1: {
+                    $collection = 'email_report_data';
+                    $data = ["unique_id" => $actionLog->ref_id];
+                }
+                break;
+            case 2: {
+                    $collection = 'msg91_report_data';
+                    $data = $actionLog->ref_id;
+                }
+                break;
+            case 3: {
+                }
+                break;
+            case 4: {
+                }
+                break;
+            case 5: {
+                }
+                break;
+        }
+        $res = $lib->getReports($data);
+
+        $service = $this->setService($channelId);
+
+        $service->storeReport($res, $actionLog, $collection);
+    }
+
 
 
     public function setLibrary($channel)
@@ -194,6 +237,26 @@ class ChannelService
                 return new WhatsAppLib();
             case $voice:
                 return new VoiceLib();
+        }
+    }
+    public function setService($channel)
+    {
+        $email = 1;
+        $sms = 2;
+        $otp = 3;
+        $whatsapp = 4;
+        $voice = 5;
+        switch ($channel) {
+            case $email:
+                return new EmailService();
+            case $sms:
+                return new SmsService();
+            case $otp:
+                return new OtpService();
+            case $whatsapp:
+                return new WhatsappService();
+            case $voice:
+                return new VoiceService();
         }
     }
 }

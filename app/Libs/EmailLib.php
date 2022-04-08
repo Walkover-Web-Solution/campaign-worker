@@ -24,6 +24,12 @@ class EmailLib
         return $this->makeAPICAll($operation);
     }
 
+    public function getReports($input)
+    {
+        $operation = 'https://test.mailer91.com/api/reports-by-request-id';
+        return $this->makeAPICAll($operation, $input, 'get');
+    }
+
     public function makeAPICAll($operation, $input = [], $method = 'get')
     {
         $authorization = config('msg91.jwt_token');
@@ -34,17 +40,20 @@ class EmailLib
             $tempValue = json_encode($input);
         }
 
-        $host = env('EMAIL_HOST_URL');
-        $endpoint = $host . $operation;
+        if ($operation == 'send') {
+            $host = env('EMAIL_HOST_URL');
+            $endpoint = $host . $operation;
+        } else {
+            $endpoint = $operation;
+        }
 
         $jwt = JWTDecode($authorization);
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
-            ->withOption($tempOption, $tempValue)
             ->withData($input)
             ->asJson()
             ->asJsonResponse()
-            ->post();
+            ->$method();
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';

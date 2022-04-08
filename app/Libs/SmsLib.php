@@ -25,6 +25,12 @@ class SmsLib
         return $this->makeAPICAll($operation, $input);
     }
 
+    public function getReports($input)
+    {
+        $operation = 'test.msg91.com/api/getDlrReport.php?reqId=' . $input;
+        return $this->makeAPICAll($operation, $input, 'get');
+    }
+
     public function makeAPICAll($operation, $input = [], $method = 'get')
     {
         $authorization = config('msg91.jwt_token');
@@ -35,12 +41,16 @@ class SmsLib
             $tempValue = json_encode($input);
         }
 
-        $host = env('SMS_HOST_URL');
-        $endpoint = $host . $operation;
+        if ($operation == 'send') {
+            $host = env('SMS_HOST_URL');
+            $endpoint = $host . $operation;
+        } else {
+            $endpoint = $operation;
+        }
 
         $jwt = JWTDecode($authorization);
 
-         $res = Curl::to($endpoint)
+        $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
             ->withData($input)
             ->asJson()
@@ -101,4 +111,5 @@ class SmsLib
 
         return $res;
     }
+
 }
