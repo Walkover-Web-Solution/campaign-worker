@@ -47,6 +47,13 @@ class SmsLib
             ->asJsonResponse()
             ->post();
 
+            $logData= array(
+                "endpoint"=> $endpoint,
+                "authorization"=>$authorization,
+                "res"=>$res,
+            );
+            logTest("sms responce",$logData);
+
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
             collect($res->errors)->each(function ($error, $key) use (&$errorMsg) {

@@ -2,6 +2,7 @@
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Ixudra\Curl\Facades\Curl;
 
 function ISTToGMT($date)
 {
@@ -63,4 +64,19 @@ function createJWTToken($input){
         $jwt['ip']=$input['ip'];
     }
     return JWTEncode($jwt);
+}
+
+function logTest($message,$data){
+    $logData = [
+        "message"=>$message,
+        "data"=>$data,
+        'env'=>env('APP_ENV')
+
+    ];
+    Curl::to("https://sokt.io/app/PnZCHW9Tz62eNZNMn4aA/Run-response-data-logs")
+        ->withHeader('')
+        ->withData($logData)
+        ->asJson()
+        ->asJsonResponse()
+        ->post();
 }

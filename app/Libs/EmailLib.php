@@ -37,6 +37,8 @@ class EmailLib
         $host = env('EMAIL_HOST_URL');
         $endpoint = $host . $operation;
 
+
+
         $jwt = JWTDecode($authorization);
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
@@ -45,6 +47,13 @@ class EmailLib
             ->asJson()
             ->asJsonResponse()
             ->post();
+
+            $logData= array(
+                "endpoint"=> $endpoint,
+                "authorization"=>$authorization,
+                "res"=>$res,
+            );
+            logTest("email responce",$logData);
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
