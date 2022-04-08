@@ -58,7 +58,11 @@ class RunEmailCampaignConsumer extends Command
 
             $obj->sendData($action_log_id);
         } catch (\Exception $e) {
-
+            $logData=[
+                "actionLog"=>$action_log_id,
+                "exception"=>$e->getMessage()
+            ];
+            logTest("failed job email",$logData);
             if(empty($this->rabbitmq)){
                 $this->rabbitmq = new RabbitMQLib;
             }

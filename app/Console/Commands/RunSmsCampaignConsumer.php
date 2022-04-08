@@ -61,6 +61,11 @@ class RunSmsCampaignConsumer extends Command
             if(empty($this->rabbitmq)){
                 $this->rabbitmq = new RabbitMQLib;
             }
+            $logData=[
+                "actionLog"=>$action_log_id,
+                "exception"=>$e->getMessage()
+            ];
+            logTest("failed job sms",$logData);
 
             $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
         }
