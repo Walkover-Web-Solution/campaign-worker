@@ -2,68 +2,37 @@
 
 namespace App\Libs;
 
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
-class SmsLib
+class ReportLib
 {
-    public function send($input)
+    public function getEmailReport($input)
     {
-        $operation = 'campaign/send?action=sendsms';
-        return $this->makeAPICAll($operation, $input, 'post');
+        $endpoint = 'https://test.mailer91.com/api/reports-by-request-id';
+        // $endpoint = 'https://www.mailer91.com/docs/#reports-GETapi-reports-by-request-id';
+        return $this->makeAPICAll($endpoint, $input, 'get');
     }
 
-    public function getTemplate($type, $templateId)
+    public function getSmsReport($input)
     {
-        $input = array(
-            "service" => "campaign",
-            'type' => $type,
-            'channel' => 'sms',
-            'id' => $templateId
-        );
-        $operation = 'campaign/getTemplateDetails';
-
-        return $this->makeAPICAll($operation, $input);
+        $endpoint = '';
+        return $this->makeAPICAll($endpoint, $input, 'get');
     }
 
-    public function getReports($input)
-    {
-        $operation = 'test.msg91.com/api/getDlrReport.php?reqId=' . $input;
-        return $this->makeAPICAll($operation, $input, 'get');
-    }
-
-    public function makeAPICAll($operation, $input = [], $method = 'get')
+    public function makeAPICAll($endpoint, $input = [], $method = 'get')
     {
         $authorization = config('msg91.jwt_token');
-        $tempOption = 'TIMEOUT';
-        $tempValue = 100;
-        if ($method == 'get' && strpos($operation, 'email') === false) {
-            $tempOption = 'POSTFIELDS';
-            $tempValue = json_encode($input);
-        }
-
-        if ($operation == 'send') {
-            $host = env('SMS_HOST_URL');
-            $endpoint = $host . $operation;
-        } else {
-            $endpoint = $operation;
-        }
-
         $jwt = JWTDecode($authorization);
-
+        Log::info('hello');
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
             ->withData($input)
             ->asJson()
             ->asJsonResponse()
-            ->post();
-
-            $logData= array(
-                "endpoint"=> $endpoint,
-                "authorization"=>$authorization,
-                "res"=>$res,
-            );
-            logTest("sms responce",$logData);
-
+            ->get();
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
             collect($res->errors)->each(function ($error, $key) use (&$errorMsg) {
@@ -115,8 +84,6 @@ class SmsLib
         if (isset($res->msgType) && $res->msgType == 'error') {
             throw new \Exception($res->msg, 1);
         }
-
         return $res;
     }
-
 }
