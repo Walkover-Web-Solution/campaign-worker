@@ -56,7 +56,10 @@ class ChannelService
             'requestId' => $action_log->mongo_id
         ]);
         $md = json_decode(json_encode($data));
-
+        dd($md[0]->data->sendTo);
+        collect($md[0]->data)->map(function($item){
+            dd($item);
+        });
         /**
          * generating the request body data according to flow channel id
          */
@@ -111,7 +114,6 @@ class ChannelService
         /**
          * extracting the all the variables from the mongo data
          */
-
         $var = collect($md[0]->data);
         unset($var['emails']);
         unset($var['mobiles']);
