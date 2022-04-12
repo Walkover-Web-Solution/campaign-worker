@@ -85,14 +85,11 @@ function logTest($message, $data)
 
 function stringToJson($str)
 {
-    $obj = new \stdClass();
-    $obj->data = [];
-    $data = explode(',', $str);
-    collect($data)->map(function ($item) use ($obj){
-        $val=array(
+    $data = collect(explode(',', $str));
+    $mappedData=$data->map(function ($item){
+        return array(
             "email"=>$item
         );
-        array_push($obj->data,$val);
     });
-    return json_decode(collect($obj->data));
+    return $mappedData;
 }

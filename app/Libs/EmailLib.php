@@ -60,7 +60,7 @@ class EmailLib
             "authorization" => $authorization,
             "res" => $res,
         );
-        logTest("email responce", $logData);
+        logTest("email response", $logData);
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
