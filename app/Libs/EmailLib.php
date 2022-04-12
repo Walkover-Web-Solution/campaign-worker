@@ -47,8 +47,6 @@ class EmailLib
             $endpoint = $operation;
         }
 
-
-
         $jwt = JWTDecode($authorization);
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
@@ -57,12 +55,12 @@ class EmailLib
             ->asJsonResponse()
             ->$method();
 
-            $logData= array(
-                "endpoint"=> $endpoint,
-                "authorization"=>$authorization,
-                "res"=>$res,
-            );
-            logTest("email responce",$logData);
+        $logData = array(
+            "endpoint" => $endpoint,
+            "authorization" => $authorization,
+            "res" => $res,
+        );
+        logTest("email responce", $logData);
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
