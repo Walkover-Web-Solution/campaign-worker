@@ -61,7 +61,6 @@ class ChannelService
          * generating the request body data according to flow channel id
          */
         $data = $this->getRequestBody($flow, $md);
-
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
@@ -104,15 +103,19 @@ class ChannelService
 
     public function getRequestBody($flow, $md)
     {
+        $obj = new \stdClass();
+        $obj->values = [];
+        collect($flow["configurations"])->map(function ($item) use ($obj) {
+            $obj->values[$item->name] = $item->value;
+        });
         /**
          * extracting the all the variables from the mongo data
          */
+
         $var = collect($md[0]->data);
         unset($var['emails']);
         unset($var['mobiles']);
         unset($var['mobile']);
-        $obj = new \stdClass();
-        $obj->data = [];
         $temp = Template::where('flow_action_id', $flow['id'])->first();  //geting the template information according to flow
         $variables = collect($var)->map(function ($value, $key) use ($temp) {
             if (in_array($key, $temp->variables)) {
@@ -123,26 +126,36 @@ class ChannelService
         $mongo_data = collect($md[0]->data);
         switch ($flow['channel_id']) {
             case 1:
-                if (!isset($this->mongo_data['emails']->cc)) {
-                    $cc = $flow['configurations']->cc;
+                if (isset($obj->values['cc']))
+                    $cc = stringToJson($obj->values['cc']);
+                if (isset($obj->values['bcc']))
+                    $bcc = stringToJson($obj->values['bcc']);
+                if (isset($this->mongo_data['emails']->cc) || (isset($obj->values['cc']) && isset($this->mongo_data['emails']->cc))) {
+                    $cc = $this->mongo_data['emails']->cc;
                 }
-                if (!isset($mongo_data['emails']->bcc)) {
-                    $bcc = $flow['configurations']->bcc;
+
+                if (isset($mongo_data['emails']->bcc) || (isset($obj->values['bcc']) && isset($this->mongo_data['emails']->bcc))) {
+                    $bcc = $mongo_data['emails']->bcc;
                 }
+
+                $email = $obj->values['from_email'] . "@" . $obj->values['domain'];
+                $from = [
+                    "name" => $obj->values['from_email_name'],
+                    "email" => $email
+                ];
                 $data = array(
                     "to" => $mongo_data['emails']->to,
-                    "from" => $flow['configurations']->from,
+                    "from" => json_decode(collect($from)),
                     "cc" => $cc,
                     "bcc" => $bcc,
-                    'variables' => $variables,
+                    'variables' => json_decode(collect($variables)),
                     'template_id' => $temp->template_id
                 );
                 break;
             case 2:
-                array_push($obj->data, $mongo_data['mobiles']);
                 $data = [
                     "flow_id" => $temp->template_id,
-                    'recipients' => $obj->data[0],
+                    'recipients' => $mongo_data['mobiles'],
                     "short_url" => true
                 ];
                 break;
@@ -150,6 +163,7 @@ class ChannelService
                 array_push($obj->data, $mongo_data['mobile']); //for otp
                 break;
         }
+        $data = json_decode(collect($data));
         return $data;
     }
 
@@ -199,7 +213,7 @@ class ChannelService
         return;
     }
 
-    
+
     public function getReports($actionLogId)
     {
         $actionLog = ActionLog::where('id', $actionLogId)->first();

@@ -36,41 +36,43 @@ function JWTDecode($value)
     return JWT::decode($value, new Key($key, 'HS256'));
 }
 
-function createJWTToken($input){
+function createJWTToken($input)
+{
 
-    $company=$input['company'];
-    $jwt=array(
-        'company'=>array(
-            'id'=>$company->ref_id,
-            'username'=>$company->name,
-            'email'=>$company->email,
+    $company = $input['company'];
+    $jwt = array(
+        'company' => array(
+            'id' => $company->ref_id,
+            'username' => $company->name,
+            'email' => $company->email,
             ''
         ),
-        'need_validation'=>true
+        'need_validation' => true
     );
-    if(!empty($input['user'])){
-        $user=$input['user'];
-        $jwt['user']=array(
-            'id'=>$user->ref_id,
-            'username'=>$user->name,
-            'email'=>$user->email
+    if (!empty($input['user'])) {
+        $user = $input['user'];
+        $jwt['user'] = array(
+            'id' => $user->ref_id,
+            'username' => $user->name,
+            'email' => $user->email
         );
-        $jwt['need_validation']=false;
+        $jwt['need_validation'] = false;
     }
-    if(isset($input['token'])){
-        $jwt['need_validation']=false; // run case handle,
+    if (isset($input['token'])) {
+        $jwt['need_validation'] = false; // run case handle,
     }
-    if(isset($input['ip'])){
-        $jwt['ip']=$input['ip'];
+    if (isset($input['ip'])) {
+        $jwt['ip'] = $input['ip'];
     }
     return JWTEncode($jwt);
 }
 
-function logTest($message,$data){
+function logTest($message, $data)
+{
     $logData = [
-        "message"=>$message,
-        "data"=>$data,
-        'env'=>env('APP_ENV')
+        "message" => $message,
+        "data" => $data,
+        'env' => env('APP_ENV')
 
     ];
     Curl::to("https://sokt.io/app/PnZCHW9Tz62eNZNMn4aA/Run-response-data-logs")
@@ -79,4 +81,15 @@ function logTest($message,$data){
         ->asJson()
         ->asJsonResponse()
         ->post();
+}
+
+function stringToJson($str)
+{
+    $data = collect(explode(',', $str));
+    $mappedData=$data->map(function ($item){
+        return array(
+            "email"=>$item
+        );
+    });
+    return $mappedData;
 }

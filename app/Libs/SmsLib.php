@@ -41,7 +41,7 @@ class SmsLib
             $tempValue = json_encode($input);
         }
 
-        if ($operation == 'send') {
+        if ($operation == 'campaign/send?action=sendsms') {
             $host = env('SMS_HOST_URL');
             $endpoint = $host . $operation;
         } else {
@@ -57,12 +57,12 @@ class SmsLib
             ->asJsonResponse()
             ->post();
 
-            $logData= array(
-                "endpoint"=> $endpoint,
-                "authorization"=>$authorization,
-                "res"=>$res,
-            );
-            logTest("sms responce",$logData);
+        $logData = array(
+            "endpoint" => $endpoint,
+            "authorization" => $authorization,
+            "res" => $res,
+        );
+        logTest("sms response", $logData);
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
@@ -118,5 +118,4 @@ class SmsLib
 
         return $res;
     }
-
 }
