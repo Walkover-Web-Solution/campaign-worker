@@ -18,7 +18,8 @@ class ActionLog extends Model
         'flow_action_id',
         'mongo_id',
         'created_at',
-        'updated_at'
+        'updated_at',
+        'uid'
     ];
 
     protected $casts = [

@@ -21,16 +21,15 @@ class onekRunConsume extends Command
      * @var string
      */
     protected $description = 'To consume the queue have record less than 1k data';
-
+    protected $rabbitmq;
     /**
      * Create a new command instance.
      *
      * @return void
      */
-    protected $rabbitmq;
     public function __construct()
     {
-        $this->rabbitmq = new RabbitMQLib;
+
         parent::__construct();
     }
 
@@ -41,23 +40,31 @@ class onekRunConsume extends Command
      */
     public function handle()
     {
+        if (empty($this->rabbitmq)) {
+            $this->rabbitmq = new RabbitMQLib;
+        }
         $this->rabbitmq->dequeue('1k_data_queue', array($this, 'decodedData'));
     }
     public function decodedData($msg)
-    { try{
+    {
+        try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
             $obj = new RecordService();
             $obj->pickFlowAction($campLogId);
-        }
-        catch(\Exception $e){
-            $logData=[
-                "actionLog"=>$campLogId,
-                "exception"=>$e->getMessage()
+        } catch (\Exception $e) {
+            dd($e->getMessage());
+            $logData = [
+                "actionLog" => $campLogId,
+                "exception" => $e->getMessage()
             ];
-            logTest("faild_1k_queue",$logData);
-            $this->rabbitmq->putInFailedQueue('failed_run_email_campaigns', $msg->getBody());
+            logTest("faild_1k_queue", $logData);
+            if (empty($this->rabbitmq)) {
+                $this->rabbitmq = new RabbitMQLib;
+            }
+            $this->rabbitmq->putInFailedQueue('failed_1k_data_queue', $msg->getBody());
         }
+        $msg->ack();
     }
 }
