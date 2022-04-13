@@ -36,7 +36,9 @@ class RecordService
             $obj = new \stdClass();
             $obj->values = [];
             collect($flow["configurations"])->map(function ($item) use ($obj) {
-                $obj->values[$item->name] = $item->value;
+                $key = $item->name;
+                if ($key != 'template')
+                    $obj->values[$key] = $item->value;
             });
             if (isset($obj->values['cc']))
                 $cc = stringToJson($obj->values['cc']);
@@ -63,7 +65,7 @@ class RecordService
             return ($data);
         })->toJson();
         $sendTo = json_decode($sendto);
-        collect($sendTo)->map(function ($item) use ($flow,$camplog,$camp) {
+        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp) {
             $reqId = preg_replace('/\s+/', '', now()) . '_' . md5(uniqid(rand(), true));
             $data = [
                 'requestId' => $reqId,
@@ -88,9 +90,7 @@ class RecordService
                 $input->action_log_id =  $actionLog->id;
                 $this->createNewJob($flow->channel_id, $input);
             }
-
         });
-        
     }
     public function createNewJob($channel_id, $input)
     {
