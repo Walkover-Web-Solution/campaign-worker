@@ -51,15 +51,15 @@ class onekRunConsume extends Command
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
-            $obj = new RecordService();
-            $obj->pickFlowAction($campLogId);
+            $recordService = new RecordService();
+            $recordService->pickFlowAction($campLogId);
         } catch (\Exception $e) {
             dd($e->getMessage());
             $logData = [
                 "actionLog" => $campLogId,
                 "exception" => $e->getMessage()
             ];
-            logTest("faild_1k_queue", $logData);
+            logTest("failed_1k_queue", $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }

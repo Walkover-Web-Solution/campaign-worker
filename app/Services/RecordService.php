@@ -28,7 +28,11 @@ class RecordService
     {
         $camplog = CampaignLog::where('id', $campLogId)->first();
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
+        if (empty($camp))
+            return;
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
+        if (empty($flow))
+            return;
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
