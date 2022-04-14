@@ -85,9 +85,10 @@ class RecordService
                 'data' => $item
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
+            $no_of_records=count($item->emails->to)+count($item->emails->cc)+count($item->emails->bcc)+count($item->mobiles);
             // insert data in ActionLogs table
             $actionLogData = [
-                "no_of_records" => 0,
+                "no_of_records" => $no_of_records,
                 "ip" => request()->ip(),
                 "status" => "pending",
                 "reason" => "",

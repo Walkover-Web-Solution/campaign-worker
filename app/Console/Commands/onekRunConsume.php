@@ -54,7 +54,6 @@ class onekRunConsume extends Command
             $recordService = new RecordService();
             $recordService->executeFlowAction($campLogId);
         } catch (\Exception $e) {
-            dd($e->getMessage());
             $logData = [
                 "actionLog" => $campLogId,
                 "exception" => $e->getMessage()
