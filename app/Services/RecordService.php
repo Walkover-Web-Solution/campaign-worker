@@ -9,6 +9,7 @@ use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
+use Exception;
 
 /**
  * Class RecordService
@@ -24,15 +25,22 @@ class RecordService
         $this->rabbitmq = new RabbitMQLib;
     }
 
-    public function pickFlowAction($campLogId)
+    /**
+     * This function will fetch start point (flowaction) of any campaign using campaign log id
+     * Then from bulk data breakdown data as per flowaction.
+     * Then generate action log for that flowaction and create job for same
+     */
+    public function executeFlowAction($campLogId)
     {
         $camplog = CampaignLog::where('id', $campLogId)->first();
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
+        // In case if campaign deleted by user
         if (empty($camp))
-            return;
+            throw new Exception("No campaign found.");
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
+        // In case of flowaction deleted by user
         if (empty($flow))
-            return;
+            throw new Exception("No flowaction found.");
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
@@ -79,7 +87,7 @@ class RecordService
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
             // insert data in ActionLogs table
             $actionLogData = [
-                "no_of_records" => "",
+                "no_of_records" => 0,
                 "ip" => request()->ip(),
                 "status" => "pending",
                 "reason" => "",

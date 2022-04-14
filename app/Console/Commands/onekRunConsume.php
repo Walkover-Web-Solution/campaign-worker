@@ -52,7 +52,7 @@ class onekRunConsume extends Command
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
             $recordService = new RecordService();
-            $recordService->pickFlowAction($campLogId);
+            $recordService->executeFlowAction($campLogId);
         } catch (\Exception $e) {
             dd($e->getMessage());
             $logData = [
