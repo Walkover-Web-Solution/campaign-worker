@@ -8,6 +8,7 @@ use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\FlowAction;
+use Carbon\Carbon;
 
 /**
  * Class RecordService
@@ -66,7 +67,7 @@ class RecordService
         })->toJson();
         $sendTo = json_decode($sendto);
         collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp) {
-            $reqId = preg_replace('/\s+/', '', now()) . '_' . md5(uniqid(rand(), true));
+            $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
                 'requestId' => $reqId,
                 'data' => $item

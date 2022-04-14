@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Libs\MongoDBLib;
+use Carbon\Carbon;
 
 /**
  * Class SmsService
@@ -39,7 +40,7 @@ class SmsService
 
         if ($actionLog->report_mongo == null) {
             // generating random key with time stamp for mongo requestId
-            $reqId = preg_replace('/\s+/', '_', now()) . '_' . md5(uniqid(rand(), true));
+            $reqId = preg_replace('/\s+/', '_',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $reportData = [
                 "requestId" => $reqId,
                 "reportData" => $res
