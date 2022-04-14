@@ -93,3 +93,31 @@ function stringToJson($str)
     });
     return $mappedData;
 }
+
+function makeEmailBody($data){
+
+    $mappedData=collect($data)->map(function ($item){
+
+        return array(
+            "name"=>$item->name,
+            "email"=>$item->email
+        );
+    })->toArray();
+    return $mappedData;
+}
+function makeMobileBody($data){
+    unset($data->variables);
+    $obj = new \stdClass();
+    $obj->arr=[];
+    collect($data)->map(function ($item)use ($obj){
+
+       $mob=collect($item)->map(function ($value){
+        return collect($value)->only('mobiles')->toArray();
+       })->toArray();
+
+       $obj->arr=array_merge($obj->arr,$mob);
+
+    });
+
+    return $obj->arr;
+}

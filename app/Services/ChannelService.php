@@ -37,7 +37,6 @@ class ChannelService
 
     public function sendData($actionLogId)
     {
-
         $action_log = ActionLog::where('id', $actionLogId)->first();
 
         /**
@@ -52,7 +51,7 @@ class ChannelService
         /**
          * Geting the data from mongo
          */
-        $data = $this->mongo->collection('run_campaign_data')->find([
+        $data = $this->mongo->collection('flow_action_data')->find([
             'requestId' => $action_log->mongo_id
         ]);
         $md = json_decode(json_encode($data));
@@ -106,18 +105,17 @@ class ChannelService
         $obj = new \stdClass();
         $obj->values = [];
         collect($flow["configurations"])->map(function ($item) use ($obj) {
-            $obj->values[$item->name] = $item->value;
+            if ($item->name != 'template')
+                $obj->values[$item->name] = $item->value;
         });
         /**
          * extracting the all the variables from the mongo data
          */
-
         $var = collect($md[0]->data);
         unset($var['emails']);
         unset($var['mobiles']);
-        unset($var['mobile']);
         $temp = Template::where('flow_action_id', $flow['id'])->first();  //geting the template information according to flow
-        $variables = collect($var)->map(function ($value, $key) use ($temp) {
+        $variables = collect($var['variables'])->map(function ($value, $key) use ($temp) {
             if (in_array($key, $temp->variables)) {
                 return $value;
             }
@@ -138,18 +136,23 @@ class ChannelService
                     $bcc = $mongo_data['emails']->bcc;
                 }
 
-                $email = $obj->values['from_email'] . "@" . $obj->values['domain'];
+                $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
+                $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
                     "name" => $obj->values['from_email_name'],
                     "email" => $email
                 ];
                 $data = array(
-                    "to" => $mongo_data['emails']->to,
+                    "recipients" => array(
+                        [
+                            "to" => $mongo_data['emails']->to,
+                            "cc" => $cc,
+                            "bcc" => $bcc,
+                            "variables" => json_decode(collect($variables))
+                        ]
+                    ),
                     "from" => json_decode(collect($from)),
-                    "cc" => $cc,
-                    "bcc" => $bcc,
-                    'variables' => json_decode(collect($variables)),
-                    'template_id' => $temp->template_id
+                    "template_id" => $temp->template_id
                 );
                 break;
             case 2:
