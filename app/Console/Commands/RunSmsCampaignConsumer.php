@@ -63,7 +63,8 @@ class RunSmsCampaignConsumer extends Command
             }
             $logData=[
                 "actionLog"=>$action_log_id,
-                "exception"=>$e->getMessage()
+                "exception"=>$e->getMessage(),
+                "stack"=>$e->getTrace()
             ];
             logTest("failed job sms",$logData);
 

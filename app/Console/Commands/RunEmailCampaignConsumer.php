@@ -60,7 +60,8 @@ class RunEmailCampaignConsumer extends Command
         } catch (\Exception $e) {
             $logData=[
                 "actionLog"=>$action_log_id,
-                "exception"=>$e->getMessage()
+                "exception"=>$e->getMessage(),
+                "stack"=>$e->getTrace()
             ];
             logTest("failed job email",$logData);
             if(empty($this->rabbitmq)){

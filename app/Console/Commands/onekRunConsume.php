@@ -56,7 +56,8 @@ class onekRunConsume extends Command
         } catch (\Exception $e) {
             $logData = [
                 "actionLog" => $campLogId,
-                "exception" => $e->getMessage()
+                "exception" => $e->getMessage(),
+                "stack"=>$e->getTrace()
             ];
             logTest("failed_1k_queue", $logData);
             if (empty($this->rabbitmq)) {

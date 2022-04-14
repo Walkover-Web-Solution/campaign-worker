@@ -63,8 +63,10 @@ class ChannelService
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
+        dd($data);
         $lib = $this->setLibrary($flow['channel_id']);
         $res = $lib->send($data);
+        dd($res);
         /**
          * updateing the responce comes from the microservice into the ref_id of current flow action
          */
@@ -188,35 +190,38 @@ class ChannelService
         /**
          *  geting the next flow id according to the responce status from microservice
          */
+        if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
+            $status = ucfirst($res->status);
+            $next_flow_id = null;
+            if ($status == 'Success')
+                $next_flow_id = $flow->module_data->op_success;
+            else
+                $next_flow_id = $flow->module_data->op_failure;
 
-        $status = ucfirst($res->status);
-        $next_flow_id = null;
-        if ($status == 'Success')
-            $next_flow_id = $flow->module_data->op_success;
-        else
-            $next_flow_id = $flow->module_data->op_failure;
-
-        if (in_array($status, $conditions) && !empty($next_flow_id)) {
-            $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
-            if (!empty($flow)) {
-                $actionLogData = [
-                    "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => $action_log->no_of_records,
-                    "ip" => request()->ip(),
-                    "status" => "pending",
-                    "reason" => "",
-                    "ref_id" => "",
-                    "flow_action_id" => $next_flow_id,
-                    "mongo_id" => $action_log->mongo_id
-                ];
-                $actionLog = $campaign->actionLogs()->create($actionLogData);
-                return $actionLog;
+            if (in_array($status, $conditions) && !empty($next_flow_id)) {
+                $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+                if (!empty($flow)) {
+                    $actionLogData = [
+                        "campaign_id" => $action_log->campaign_id,
+                        "no_of_records" => $action_log->no_of_records,
+                        "ip" => request()->ip(),
+                        "status" => "pending",
+                        "reason" => "",
+                        "ref_id" => "",
+                        "flow_action_id" => $next_flow_id,
+                        "mongo_id" => $action_log->mongo_id
+                    ];
+                    $actionLog = $campaign->actionLogs()->create($actionLogData);
+                    return $actionLog;
+                }
             }
         }
         return;
     }
 
-
+    public function creteNextActionLog()
+    {
+    }
     public function getReports($actionLogId)
     {
         $actionLog = ActionLog::where('id', $actionLogId)->first();

@@ -48,6 +48,7 @@ class EmailLib
         }
 
         $jwt = JWTDecode($authorization);
+
         $res = Curl::to($endpoint)
             ->withHeader('authorization: ' . $authorization)
             ->withData($input)
@@ -59,6 +60,7 @@ class EmailLib
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
+            "request"=>$input,
         );
         logTest("email response", $logData);
 

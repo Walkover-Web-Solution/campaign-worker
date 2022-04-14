@@ -37,6 +37,7 @@ class RecordService
         // In case if campaign deleted by user
         if (empty($camp))
             throw new Exception("No campaign found.");
+        $allFlow = FlowAction::select('channel_id')->where('campaign_id', $camp->id)->get();
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
         // In case of flowaction deleted by user
         if (empty($flow))
@@ -45,7 +46,10 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
-        $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow) {
+        $channelHas = collect($allFlow)->pluck('channel_id')->toArray();
+        $emailCount = 0;
+        $mobileCount = 0;
+        $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $channelHas,$emailCount,$mobileCount) {
             $obj = new \stdClass();
             $obj->values = [];
             collect($flow["configurations"])->map(function ($item) use ($obj) {
@@ -53,39 +57,55 @@ class RecordService
                 if ($key != 'template')
                     $obj->values[$key] = $item->value;
             });
-            if (isset($obj->values['cc']))
-                $cc = stringToJson($obj->values['cc']);
-            if (isset($obj->values['bcc']))
-                $bcc = stringToJson($obj->values['bcc']);
-            if (isset($item->cc) || (isset($obj->values['cc']) && isset($item->cc))) {
-                $cc = makeEmailBody($item->cc);
-            }
-
-            if (isset($item->bcc) || (isset($obj->values['bcc']) && isset($item->bcc))) {
-                $bcc = makeEmailBody($item->bcc);
-            }
             $variables = collect($item->variables)->toArray();
-            $data = [
-                "emails" => [
-                    "to" => makeEmailBody($item->to),
+            $emails = null;
+            $mobiles = null;
+
+            if (in_array(1, $channelHas)) {
+
+                if (isset($obj->values['cc']))
+                    $cc = stringToJson($obj->values['cc']);
+                if (isset($obj->values['bcc']))
+                    $bcc = stringToJson($obj->values['bcc']);
+                if (isset($item->cc) || (isset($obj->values['cc']) && isset($item->cc))) {
+                    $cc = makeEmailBody($item->cc);
+                }
+
+                if (isset($item->bcc) || (isset($obj->values['bcc']) && isset($item->bcc))) {
+                    $bcc = makeEmailBody($item->bcc);
+                }
+                $to=makeEmailBody($item->to);
+                $emails = [
+                    "to" => $to,
                     "cc" => $cc,
                     "bcc" => $bcc,
-                ],
-                "mobiles" => makeMobileBody($item),
+                ];
+                $emailCount = count($to) + count($cc) + count($bcc);
+            }
+            if (in_array(2, $channelHas)) {
+
+                $mobiles = makeMobileBody($item);
+                $mobileCount = count($mobiles);
+
+            }
+            $data = [
+                "emails" => $emails,
+                "mobiles" => $mobiles,
                 "variables" => $variables
             ];
+            $data = array_filter($data);
 
             return ($data);
         })->toJson();
         $sendTo = json_decode($sendto);
-        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp) {
+        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp ,$emailCount,$mobileCount) {
             $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
                 'requestId' => $reqId,
                 'data' => $item
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
-            $no_of_records=count($item->emails->to)+count($item->emails->cc)+count($item->emails->bcc)+count($item->mobiles);
+            $no_of_records = $emailCount + $mobileCount;
             // insert data in ActionLogs table
             $actionLogData = [
                 "no_of_records" => $no_of_records,
