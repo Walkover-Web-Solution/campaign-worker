@@ -10,6 +10,7 @@ use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Class RecordService
@@ -32,16 +33,27 @@ class RecordService
      */
     public function executeFlowAction($campLogId)
     {
+        // Log::debug("We are here to find flow action and to execute it");
         $camplog = CampaignLog::where('id', $campLogId)->first();
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
         // In case if campaign deleted by user
-        if (empty($camp))
+        if (empty($camp)) {
+            // Log::critical("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx");
             throw new Exception("No campaign found.");
+        }
+
+        // Log::debug("----- We found Campaign here -----");
+        // Log::debug("Now moving forward to get flowactions for campaign");
         $allFlow = FlowAction::select('channel_id')->where('campaign_id', $camp->id)->get();
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
         // In case of flowaction deleted by user
-        if (empty($flow))
+        if (empty($flow)){
+            // Log::error("No flow actions found.");
             throw new Exception("No flowaction found.");
+        }
+            
+
+        // Log::debug("Now fetching for mongo data.");
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
@@ -115,8 +127,10 @@ class RecordService
             $actionLog = $camp->actionLogs()->create($actionLogData);
 
             if (!empty($actionLog)) {
+                // Log::debug("We have action log now.");
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
+                // Log::debug('Now creating new job according to cahnnel. '.$actionLog->id);
                 $this->createNewJob($flow->channel_id, $input);
             }
         });
@@ -141,6 +155,12 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
         }
-        RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
+        // Log::debug('About to create job for '.$queue);
+        if (empty($this->rabbitmq)) {
+            $this->rabbitmq = new RabbitMQLib;
+        }
+        $this->rabbitmq->enqueue($queue,$input);
+        // Log::debug('================= Created Job in '.$queue.' =============');
+        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
 }

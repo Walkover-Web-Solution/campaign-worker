@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Libs\RabbitMQLib;
 use App\Services\RecordService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class onekRunConsume extends Command
 {
@@ -47,6 +48,7 @@ class onekRunConsume extends Command
     }
     public function decodedData($msg)
     {
+        // Log::debug("=============== We are in docodedData ===================");
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
@@ -59,6 +61,7 @@ class onekRunConsume extends Command
                 "exception" => $e->getMessage(),
                 "stack"=>$e->getTrace()
             ];
+            // Log::debug("Exception in onek",$logData);
             logTest("failed_1k_queue", $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;

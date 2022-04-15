@@ -52,8 +52,7 @@ class RunEmailCampaignConsumer extends Command
     {
         try {
             $message = json_decode($msg->getBody(), true);
-            $obj = $message['data']['command'];
-            $action_log_id = unserialize($obj)->data->action_log_id;
+            $action_log_id = $message['action_log_id'];
             $channelService = new ChannelService();
 
             $channelService->sendData($action_log_id);

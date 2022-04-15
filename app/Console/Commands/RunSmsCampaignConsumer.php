@@ -6,6 +6,7 @@ use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Services\ChannelService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class RunSmsCampaignConsumer extends Command
 {
@@ -51,11 +52,11 @@ class RunSmsCampaignConsumer extends Command
     public function decodedData($msg)
     {
         try {
+            // Log::debug("======== Found job in sms queue ========");
             $message = json_decode($msg->getBody(), true);
-            $obj = $message['data']['command'];
-            $action_log_id = unserialize($obj)->data->action_log_id;
+            // Log::debug("Decoding data from job ",(array)$message);
+            $action_log_id = $message['action_log_id'];
             $channelService = new ChannelService();
-
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {
             if(empty($this->rabbitmq)){
@@ -67,6 +68,7 @@ class RunSmsCampaignConsumer extends Command
                 "stack"=>$e->getTrace()
             ];
             logTest("failed job sms",$logData);
+            // Log::debug("Found exception in run sms ",$logData);
 
             $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
         }
