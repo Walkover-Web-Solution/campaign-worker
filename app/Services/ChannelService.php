@@ -32,7 +32,6 @@ class ChannelService
     protected $rabbitmq;
     public function __construct()
     {
-        
     }
 
     public function sendData($actionLogId)
@@ -50,7 +49,7 @@ class ChannelService
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
 
-        if(empty($this->mongo)){
+        if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
         /**
@@ -77,7 +76,8 @@ class ChannelService
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        printLog('We have successfully send data to SMS.', 1, (array)$res);
+        printLog('We have successfully send data to SMS.', 1, empty($res) ? 'NULL RESPONSE' : (array)$res);
+
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res);
         // printLog('Got new action log and its id is ' . $new_action_log->id, 1);
         if (!empty($new_action_log)) {
@@ -149,7 +149,7 @@ class ChannelService
                     $bcc = stringToJson($obj->values['bcc']);
                 }
                 $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
-                $domain = $obj->values['domain'];
+                //$domain = $obj->values['domain'];
                 $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
                     "name" => $obj->values['from_email_name'],
@@ -185,36 +185,44 @@ class ChannelService
 
     public function updateActionLogResponse($flow, $action_log, $res)
     {
+
         printLog("Now sending data to microservice", 1);
-        if ($flow->channel_id == 1) {
+
+        $val = "";
+        if ($flow->channel_id == 1 && !empty($res)) {
             $val = $res->data->unique_id;
-        } else if ($flow->channel_id = 2) {
+        } else if ($flow->channel_id == 2 && !empty($res)) {
             $val = $res->data;
         } else {
             //
         }
         $action = ActionLog::where('id', $action_log->id)->first();
-        $action->update(['ref_id' => $val]);
+        if (!empty($var))
+            $action->update(['ref_id' => $val]);
         $channel = ChannelType::where('id', $flow->channel_id)->first();
         $conditions = $channel->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
-        $campLog = CampaignLog::where('campaign_id', $action_log->campaign_id)->first();
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
          */
+
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
             printLog("We are here to create new action log as per module data", 1);
-            $status = ucfirst($res->status);
+            if (empty($val))
+                $status = 'Failure';
+            else
+                $status = ucfirst($res->status);
             $next_flow_id = null;
             if ($status == 'Success')
                 $next_flow_id = $flow->module_data->op_success;
             else
                 $next_flow_id = $flow->module_data->op_failure;
 
+            $action->update(['status' => $status]);
             printLog('Get status from microservice ' . $status, 1);
-            printLog("Conditions are ",1,$conditions);
+            printLog("Conditions are ", 1, $conditions);
             if (in_array($status, $conditions) && !empty($next_flow_id)) {
-                printLog('Next flow id is '.$next_flow_id,1);
+                printLog('Next flow id is ' . $next_flow_id, 1);
                 $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
                 if (!empty($flow)) {
                     printLog("Found next flow action.");
@@ -223,25 +231,23 @@ class ChannelService
                         "no_of_records" => $action_log->no_of_records,
                         "ip" => request()->ip(),
                         "status" => "pending",
-                        "reason" => "",
+                        "reason" => "pending",
                         "ref_id" => "",
                         "flow_action_id" => $next_flow_id,
                         "mongo_id" => $action_log->mongo_id,
-                        'uid' => $campLog->id
+                        'campaign_log_id' => $action_log->campaign_log_id
                     ];
                     printLog('Creating new action as per channel id ', 1);
                     $actionLog = $campaign->actionLogs()->create($actionLogData);
+
                     return $actionLog;
-                }
-                else
-                {
+                } else {
                     printLog("Didn't found next flow action.");
                 }
             }
         }
         return;
     }
-
     public function creteNextActionLog()
     {
     }

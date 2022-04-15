@@ -69,11 +69,11 @@ class RecordService
                 "no_of_records" => $no_of_records,
                 "ip" => request()->ip(),
                 "status" => "pending",
-                "reason" => "",
+                "reason" => "pending",
                 "ref_id" => "",
                 "flow_action_id" => $flow->id,
                 "mongo_id" => $reqId,
-                'uid' => $camplog->id
+                'campaign_log_id' => $camplog->id
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
             if (!empty($actionLog)) {

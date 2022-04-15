@@ -19,7 +19,7 @@ class ActionLog extends Model
         'mongo_id',
         'created_at',
         'updated_at',
-        'uid'
+        'campaign_log_id'
     ];
 
     protected $casts = [
