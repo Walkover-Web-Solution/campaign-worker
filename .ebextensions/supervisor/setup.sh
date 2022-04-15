@@ -12,15 +12,15 @@ echo "Supervisor - starting setup"
 
 
 
-echo "installing supervisor"
-sudo easy_install supervisor
+# echo "installing supervisor"
+# sudo easy_install supervisor
 
-# if [ ! -f /usr/bin/supervisord ]; then
-#     echo "installing supervisor"
-#     sudo easy_install supervisor
-# else
-#     echo "supervisor already installed"
-# fi
+if [ ! -f /usr/bin/supervisord ]; then
+    echo "installing supervisor"
+    sudo easy_install supervisor
+else
+    echo "supervisor already installed"
+fi
 
 
 if [ ! -d /var/log/supervisor ]; then
@@ -51,6 +51,7 @@ cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/one
 
 if ps aux | grep "[/]usr/bin/supervisord"; then
     echo "supervisor is running"
+    /usr/bin/supervisorctl stop all 
 else
     echo "starting supervisor"
     /usr/bin/supervisord
