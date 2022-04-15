@@ -46,66 +46,61 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
-        $channelHas = collect($allFlow)->pluck('channel_id')->toArray();
-        $emailCount = 0;
-        $mobileCount = 0;
-        $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $channelHas,$emailCount,$mobileCount) {
-            $obj = new \stdClass();
-            $obj->values = [];
-            collect($flow["configurations"])->map(function ($item) use ($obj) {
-                $key = $item->name;
-                if ($key != 'template')
-                    $obj->values[$key] = $item->value;
-            });
+        $obj=new \stdClass();
+        $obj->emailCount = 0;
+        $obj->mobileCount = 0;
+        $obj->emails=[];
+        $obj->mobiles=[];
+        $obj->hasChannel=collect($allFlow)->pluck('channel_id')->unique()->toArray();
+        $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $obj) {
+
             $variables = collect($item->variables)->toArray();
             $emails = null;
             $mobiles = null;
 
-            if (in_array(1, $channelHas)) {
+            collect($obj->hasChannel)->map(function ($channel) use ($flow,$item,$obj) {
+                switch ($channel) {
+                    case 1:
+                        $cc=[];
+                        $bcc=[];
+                        if (isset($item->cc)) {
+                            $cc = makeEmailBody($item->cc);
+                        }
+                        if (isset($item->bcc)) {
+                            $bcc = makeEmailBody($item->bcc);
+                        }
+                        $to = makeEmailBody($item->to);
+                        $obj->emails = [
+                            "to" => $to,
+                            "cc" => $cc,
+                            "bcc" => $bcc,
+                        ];
 
-                if (isset($obj->values['cc']))
-                    $cc = stringToJson($obj->values['cc']);
-                if (isset($obj->values['bcc']))
-                    $bcc = stringToJson($obj->values['bcc']);
-                if (isset($item->cc) || (isset($obj->values['cc']) && isset($item->cc))) {
-                    $cc = makeEmailBody($item->cc);
+                        $obj->emailCount = count($to) + count($cc) + count($bcc);
+                        break;
+                    case 2:
+                        $obj->mobiles = makeMobileBody($item);
+                        $obj->mobileCount = count($obj->mobiles);
+                        break;
                 }
-
-                if (isset($item->bcc) || (isset($obj->values['bcc']) && isset($item->bcc))) {
-                    $bcc = makeEmailBody($item->bcc);
-                }
-                $to=makeEmailBody($item->to);
-                $emails = [
-                    "to" => $to,
-                    "cc" => $cc,
-                    "bcc" => $bcc,
-                ];
-                $emailCount = count($to) + count($cc) + count($bcc);
-            }
-            if (in_array(2, $channelHas)) {
-
-                $mobiles = makeMobileBody($item);
-                $mobileCount = count($mobiles);
-
-            }
+            });
             $data = [
-                "emails" => $emails,
-                "mobiles" => $mobiles,
+                "emails" => $obj->emails,
+                "mobiles" => $obj->mobiles,
                 "variables" => $variables
             ];
-            $data = array_filter($data);
 
             return ($data);
         })->toJson();
         $sendTo = json_decode($sendto);
-        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp ,$emailCount,$mobileCount) {
+        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp, $obj) {
             $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
                 'requestId' => $reqId,
                 'data' => $item
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
-            $no_of_records = $emailCount + $mobileCount;
+            $no_of_records = $obj->emailCount + $obj->mobileCount;
             // insert data in ActionLogs table
             $actionLogData = [
                 "no_of_records" => $no_of_records,

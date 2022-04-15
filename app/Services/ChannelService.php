@@ -12,6 +12,7 @@ use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
 use App\Models\ActionLog;
 use App\Models\Campaign;
+use App\Models\CampaignLog;
 use App\Models\ChannelType;
 use App\Models\Company;
 use App\Models\FlowAction;
@@ -55,7 +56,6 @@ class ChannelService
             'requestId' => $action_log->mongo_id
         ]);
         $md = json_decode(json_encode($data));
-
         /**
          * generating the request body data according to flow channel id
          */
@@ -63,10 +63,10 @@ class ChannelService
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
-        dd($data);
+    
         $lib = $this->setLibrary($flow['channel_id']);
         $res = $lib->send($data);
-        dd($res);
+
         /**
          * updateing the responce comes from the microservice into the ref_id of current flow action
          */
@@ -126,18 +126,16 @@ class ChannelService
         $mongo_data = collect($md[0]->data);
         switch ($flow['channel_id']) {
             case 1:
-                if (isset($obj->values['cc']))
-                    $cc = stringToJson($obj->values['cc']);
-                if (isset($obj->values['bcc']))
-                    $bcc = stringToJson($obj->values['bcc']);
-                if (isset($this->mongo_data['emails']->cc) || (isset($obj->values['cc']) && isset($this->mongo_data['emails']->cc))) {
+                if (!empty($this->mongo_data['emails']->cc)) {
                     $cc = $this->mongo_data['emails']->cc;
+                } else {
+                    $cc = stringToJson($obj->values['cc']);
                 }
-
-                if (isset($mongo_data['emails']->bcc) || (isset($obj->values['bcc']) && isset($this->mongo_data['emails']->bcc))) {
-                    $bcc = $mongo_data['emails']->bcc;
+                if (!empty($this->mongo_data['emails']->bcc)) {
+                    $bcc = $this->mongo_data['emails']->bcc;
+                } else {
+                    $bcc = stringToJson($obj->values['bcc']);
                 }
-
                 $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
                 $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
@@ -185,7 +183,7 @@ class ChannelService
         $action->update(['ref_id' => $val]);
         $channel = ChannelType::where('id', $flow->channel_id)->first();
         $conditions = $channel->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
-
+        $campLog = CampaignLog::where('campaign_id', $action_log->campaign_id)->first();
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
@@ -197,7 +195,6 @@ class ChannelService
                 $next_flow_id = $flow->module_data->op_success;
             else
                 $next_flow_id = $flow->module_data->op_failure;
-
             if (in_array($status, $conditions) && !empty($next_flow_id)) {
                 $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
                 if (!empty($flow)) {
@@ -209,7 +206,8 @@ class ChannelService
                         "reason" => "",
                         "ref_id" => "",
                         "flow_action_id" => $next_flow_id,
-                        "mongo_id" => $action_log->mongo_id
+                        "mongo_id" => $action_log->mongo_id,
+                        'uid' => $campLog->id
                     ];
                     $actionLog = $campaign->actionLogs()->create($actionLogData);
                     return $actionLog;
