@@ -209,7 +209,7 @@ class ChannelService
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
             printLog("We are here to create new action log as per module data", 1);
             if (empty($val))
-                $status = 'Failure';
+                $status = 'Failed';
             else
                 $status = ucfirst($res->status);
             $next_flow_id = null;
