@@ -51,7 +51,9 @@ class RunEmailCampaignConsumer extends Command
     public function decodedData($msg)
     {
         try {
+            printLog("======== Found job in email queue ========", 2);
             $message = json_decode($msg->getBody(), true);
+            printLog("Decoding data from job ", 1, (array)$message);
             $action_log_id = $message['action_log_id'];
             $channelService = new ChannelService();
 
@@ -63,6 +65,7 @@ class RunEmailCampaignConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job email", $logData);
+            printLog("Found exception in run email ", 1,  $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }

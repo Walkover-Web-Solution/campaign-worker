@@ -75,10 +75,11 @@ class ChannelService
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        printLog('We have successfully send data to SMS.', 1, (array)$res->data);
+        printLog('We have successfully send data to SMS.', 1, (array)$res);
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res);
-
+        // printLog('Got new action log and its id is ' . $new_action_log->id, 1);
         if (!empty($new_action_log)) {
+            printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
@@ -182,6 +183,7 @@ class ChannelService
 
     public function updateActionLogResponse($flow, $action_log, $res)
     {
+        printLog("Now sending data to microservice", 1);
         if ($flow->channel_id == 1) {
             $val = $res->data->unique_id;
         } else if ($flow->channel_id = 2) {
@@ -199,15 +201,21 @@ class ChannelService
          *  geting the next flow id according to the responce status from microservice
          */
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
+            printLog("We are here to create new action log as per module data", 1);
             $status = ucfirst($res->status);
             $next_flow_id = null;
             if ($status == 'Success')
                 $next_flow_id = $flow->module_data->op_success;
             else
                 $next_flow_id = $flow->module_data->op_failure;
+
+            printLog('Get status from microservice ' . $status, 1);
+            printLog("Conditions are ",1,$conditions);
             if (in_array($status, $conditions) && !empty($next_flow_id)) {
+                printLog('Next flow id is '.$next_flow_id,1);
                 $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
                 if (!empty($flow)) {
+                    printLog("Found next flow action.");
                     $actionLogData = [
                         "campaign_id" => $action_log->campaign_id,
                         "no_of_records" => $action_log->no_of_records,
@@ -219,8 +227,13 @@ class ChannelService
                         "mongo_id" => $action_log->mongo_id,
                         'uid' => $campLog->id
                     ];
+                    printLog('Creating new action as per channel id ', 1);
                     $actionLog = $campaign->actionLogs()->create($actionLogData);
                     return $actionLog;
+                }
+                else
+                {
+                    printLog("Didn't found next flow action.");
                 }
             }
         }
@@ -294,6 +307,10 @@ class ChannelService
             case 5:
                 $queue = 'run_voice_campaigns';
                 break;
+        }
+        // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
+        if (empty($this->rabbitmq)) {
+            $this->rabbitmq = new RabbitMQLib;
         }
         $this->rabbitmq->enqueue($queue, $input);
         // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
