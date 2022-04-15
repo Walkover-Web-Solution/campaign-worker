@@ -32,8 +32,7 @@ class ChannelService
     protected $rabbitmq;
     public function __construct()
     {
-        $this->mongo = new MongoDBLib;
-        $this->rabbitmq = new RabbitMQLib;
+        
     }
 
     public function sendData($actionLogId)
@@ -51,6 +50,9 @@ class ChannelService
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
 
+        if(empty($this->mongo)){
+            $this->mongo = new MongoDBLib;
+        }
         /**
          * Geting the data from mongo
          */
