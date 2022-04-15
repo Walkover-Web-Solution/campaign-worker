@@ -59,11 +59,12 @@ class ChannelService
         /**
          * generating the request body data according to flow channel id
          */
+        dd($md);
         $data = $this->getRequestBody($flow, $md);
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
-    
+
         $lib = $this->setLibrary($flow['channel_id']);
         $res = $lib->send($data);
 

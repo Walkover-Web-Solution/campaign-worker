@@ -46,7 +46,32 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
-        $obj=new \stdClass();
+        collect($md[0]->data->sendTo)->map (function($item) use ($camplog,$flow,$camp){
+            $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
+            $data = [
+                'requestId' => $reqId,
+                'data' => $item
+            ];
+            $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
+            $no_of_records = $camplog->sms_records + $camplog->email_records;
+            $actionLogData = [
+                "no_of_records" => $no_of_records,
+                "ip" => request()->ip(),
+                "status" => "pending",
+                "reason" => "",
+                "ref_id" => "",
+                "flow_action_id" => $flow->id,
+                "mongo_id" => $reqId,
+                'uid' => $camplog->id
+            ];
+            $actionLog = $camp->actionLogs()->create($actionLogData);
+            if (!empty($actionLog)) {
+                $input = new \stdClass();
+                $input->action_log_id =  $actionLog->id;
+                $this->createNewJob($flow->channel_id, $input);
+            }
+        });
+        /*$obj=new \stdClass();
         $obj->emailCount = 0;
         $obj->mobileCount = 0;
         $obj->emails=[];
@@ -91,35 +116,7 @@ class RecordService
             ];
 
             return ($data);
-        })->toJson();
-        $sendTo = json_decode($sendto);
-        collect($sendTo)->map(function ($item) use ($flow, $camplog, $camp, $obj) {
-            $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
-            $data = [
-                'requestId' => $reqId,
-                'data' => $item
-            ];
-            $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
-            $no_of_records = $obj->emailCount + $obj->mobileCount;
-            // insert data in ActionLogs table
-            $actionLogData = [
-                "no_of_records" => $no_of_records,
-                "ip" => request()->ip(),
-                "status" => "pending",
-                "reason" => "",
-                "ref_id" => "",
-                "flow_action_id" => $flow->id,
-                "mongo_id" => $reqId,
-                'uid' => $camplog->id
-            ];
-            $actionLog = $camp->actionLogs()->create($actionLogData);
-
-            if (!empty($actionLog)) {
-                $input = new \stdClass();
-                $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input);
-            }
-        });
+        })->toJson();*/
     }
     public function createNewJob($channel_id, $input)
     {
