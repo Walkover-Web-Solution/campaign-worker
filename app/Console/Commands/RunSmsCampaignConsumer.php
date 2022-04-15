@@ -6,6 +6,7 @@ use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Services\ChannelService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class RunSmsCampaignConsumer extends Command
 {
@@ -42,7 +43,7 @@ class RunSmsCampaignConsumer extends Command
      */
     public function handle()
     {
-        if(empty($this->rabbitmq)){
+        if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
         $this->rabbitmq->dequeue('run_sms_campaigns', array($this, 'decodedData'));
@@ -51,22 +52,23 @@ class RunSmsCampaignConsumer extends Command
     public function decodedData($msg)
     {
         try {
+            printLog("======== Found job in sms queue ========", 2);
             $message = json_decode($msg->getBody(), true);
-            $obj = $message['data']['command'];
-            $action_log_id = unserialize($obj)->data->action_log_id;
+            printLog("Decoding data from job ", 1, (array)$message);
+            $action_log_id = $message['action_log_id'];
             $channelService = new ChannelService();
-
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {
-            if(empty($this->rabbitmq)){
+            if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }
-            $logData=[
-                "actionLog"=>$action_log_id,
-                "exception"=>$e->getMessage(),
-                "stack"=>$e->getTrace()
+            $logData = [
+                "actionLog" => $action_log_id,
+                "exception" => $e->getMessage(),
+                "stack" => $e->getTrace()
             ];
-            logTest("failed job sms",$logData);
+            logTest("failed job sms", $logData);
+            printLog("Found exception in run sms ", 1,  $logData);
 
             $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
         }

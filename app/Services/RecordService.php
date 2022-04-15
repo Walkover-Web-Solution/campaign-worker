@@ -10,6 +10,7 @@ use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Class RecordService
@@ -32,16 +33,26 @@ class RecordService
      */
     public function executeFlowAction($campLogId)
     {
+        printLog("We are here to find flow action and to execute it", 2);
         $camplog = CampaignLog::where('id', $campLogId)->first();
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
         // In case if campaign deleted by user
-        if (empty($camp))
+        if (empty($camp)) {
+            printLog("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
             throw new Exception("No campaign found.");
+        }
+
+        printLog("----- We found Campaign here -----", 2);
+        printLog("Now moving forward to get flowactions for campaign", 2);
         $allFlow = FlowAction::select('channel_id')->where('campaign_id', $camp->id)->get();
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
         // In case of flowaction deleted by user
-        if (empty($flow))
+        if (empty($flow)) {
+            printLog("No flow actions found.", 5);
             throw new Exception("No flowaction found.");
+        }
+
+        printLog("Now fetching for mongo data.", 2);
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
@@ -74,20 +85,20 @@ class RecordService
         /*$obj=new \stdClass();
         $obj->emailCount = 0;
         $obj->mobileCount = 0;
-        $obj->emails=[];
-        $obj->mobiles=[];
-        $obj->hasChannel=collect($allFlow)->pluck('channel_id')->unique()->toArray();
+        $obj->emails = [];
+        $obj->mobiles = [];
+        $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
         $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $obj) {
 
             $variables = collect($item->variables)->toArray();
             $emails = null;
             $mobiles = null;
 
-            collect($obj->hasChannel)->map(function ($channel) use ($flow,$item,$obj) {
+            collect($obj->hasChannel)->map(function ($channel) use ($flow, $item, $obj) {
                 switch ($channel) {
                     case 1:
-                        $cc=[];
-                        $bcc=[];
+                        $cc = [];
+                        $bcc = [];
                         if (isset($item->cc)) {
                             $cc = makeEmailBody($item->cc);
                         }
@@ -138,6 +149,12 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
         }
-        RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
+        printLog("About to create job for " . $queue, 1);
+        if (empty($this->rabbitmq)) {
+            $this->rabbitmq = new RabbitMQLib;
+        }
+        $this->rabbitmq->enqueue($queue, $input);
+        printLog("'================= Created Job in " . $queue . " =============", 1);
+        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
 }
