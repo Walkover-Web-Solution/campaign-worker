@@ -124,13 +124,64 @@ function makeMobileBody($data)
     return $obj->arr;
 }
 
+function convertBody($md, $campaign)
+{
+    $allFlow = $campaign->flowActions()->get();
+    $obj = new \stdClass();
+    $obj->emailCount = 0;
+    $obj->mobileCount = 0;
+    $obj->emails = [];
+    $obj->mobiles = [];
+    $item = $md[0]->data;
+    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
+
+    $variables = collect($item->variables)->toArray();
+
+    $obj->hasChannel->map(function ($channel) use ($item, $obj) {
+        switch ($channel) {
+            case 1:
+                $cc = [];
+                $bcc = [];
+                if (isset($item->cc)) {
+                    $cc = makeEmailBody($item->cc);
+                }
+                if (isset($item->bcc)) {
+                    $bcc = makeEmailBody($item->bcc);
+                }
+                $to = makeEmailBody($item->to);
+                $obj->emails = [
+                    "to" => $to,
+                    "cc" => $cc,
+                    "bcc" => $bcc,
+                ];
+
+                $obj->emailCount = count($to) + count($cc) + count($bcc);
+                break;
+            case 2:
+                $obj->mobiles = makeMobileBody($item);
+                $obj->mobileCount = count($obj->mobiles);
+                break;
+        }
+    });
+    $data = [
+        "emails" => $obj->emails,
+        "mobiles" => $obj->mobiles,
+        "variables" => $variables
+    ];
+
+    return $data;
+}
+
 
 function printLog($message, $log, $data = null)
 {
     // return;
     switch ($log) {
         case 1: {
-                Log::debug($message, $data);
+                if ($data != null)
+                    Log::debug($message, $data);
+                else
+                    Log::debug($message);
                 break;
             }
         case 2: {

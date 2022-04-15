@@ -61,8 +61,12 @@ class ChannelService
         /**
          * generating the request body data according to flow channel id
          */
+
+        printLog("converting the contact body data to required context.", 2);
+        $convertedData = convertBody($md, $campaign);
+
         printLog("generating the request body data according to flow channel id.", 2);
-        $data = $this->getRequestBody($flow, $md);
+        $data = $this->getRequestBody($flow, $convertedData);
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
@@ -71,7 +75,7 @@ class ChannelService
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        printLog('We have successfully send data to SMS.' . $res->data, 1);
+        printLog('We have successfully send data to SMS.', 1, (array)$res->data);
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res);
 
         if (!empty($new_action_log)) {
@@ -106,39 +110,43 @@ class ChannelService
 
     public function getRequestBody($flow, $md)
     {
-        $obj = new \stdClass();
-        $obj->values = [];
-        collect($flow["configurations"])->map(function ($item) use ($obj) {
-            if ($item->name != 'template')
-                $obj->values[$item->name] = $item->value;
-        });
         /**
          * extracting the all the variables from the mongo data
          */
-        $var = collect($md[0]->data);
-        unset($var['emails']);
-        unset($var['mobiles']);
-        $temp = Template::where('flow_action_id', $flow['id'])->first();  //geting the template information according to flow
-        $variables = collect($var['variables'])->map(function ($value, $key) use ($temp) {
+        $var = $md['variables'];
+
+        // get template of this flowAction
+        $temp = $flow->template;
+
+        //filter out variables of this flowActions template
+        $variables = collect($var)->map(function ($value, $key) use ($temp) {
             if (in_array($key, $temp->variables)) {
                 return $value;
             }
         });
         $variables = array_filter($variables->toArray());
-        $mongo_data = collect($md[0]->data);
+
+        $mongo_data = $md;
         switch ($flow['channel_id']) {
             case 1:
-                if (!empty($this->mongo_data['emails']->cc)) {
-                    $cc = $this->mongo_data['emails']->cc;
+                $obj = new \stdClass();
+                $obj->values = [];
+                collect($flow["configurations"])->map(function ($item) use ($obj) {
+                    if ($item->name != 'template')
+                        $obj->values[$item->name] = $item->value;
+                });
+                if (!empty($mongo_data['emails']['cc'])) {
+                    $cc = $mongo_data['emails']['cc'];
                 } else {
                     $cc = stringToJson($obj->values['cc']);
                 }
-                if (!empty($this->mongo_data['emails']->bcc)) {
-                    $bcc = $this->mongo_data['emails']->bcc;
+                if (!empty($mongo_data['emails']['bcc'])) {
+                    $bcc = $mongo_data['emails']['bcc'];
                 } else {
                     $bcc = stringToJson($obj->values['bcc']);
                 }
                 $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
+                $domain = $obj->values['domain'];
                 $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
                     "name" => $obj->values['from_email_name'],
@@ -147,7 +155,7 @@ class ChannelService
                 $data = array(
                     "recipients" => array(
                         [
-                            "to" => $mongo_data['emails']->to,
+                            "to" => $mongo_data['emails']['to'],
                             "cc" => $cc,
                             "bcc" => $bcc,
                             "variables" => json_decode(collect($variables))
@@ -165,7 +173,7 @@ class ChannelService
                 ];
                 break;
             case 3:
-                array_push($obj->data, $mongo_data['mobile']); //for otp
+                //
                 break;
         }
         $data = json_decode(collect($data));
@@ -287,7 +295,8 @@ class ChannelService
                 $queue = 'run_voice_campaigns';
                 break;
         }
-        RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
+        $this->rabbitmq->enqueue($queue, $input);
+        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
     public function setService($channel)
     {

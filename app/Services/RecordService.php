@@ -82,52 +82,6 @@ class RecordService
                 $this->createNewJob($flow->channel_id, $input);
             }
         });
-        /*$obj=new \stdClass();
-        $obj->emailCount = 0;
-        $obj->mobileCount = 0;
-        $obj->emails = [];
-        $obj->mobiles = [];
-        $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
-        $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $obj) {
-
-            $variables = collect($item->variables)->toArray();
-            $emails = null;
-            $mobiles = null;
-
-            collect($obj->hasChannel)->map(function ($channel) use ($flow, $item, $obj) {
-                switch ($channel) {
-                    case 1:
-                        $cc = [];
-                        $bcc = [];
-                        if (isset($item->cc)) {
-                            $cc = makeEmailBody($item->cc);
-                        }
-                        if (isset($item->bcc)) {
-                            $bcc = makeEmailBody($item->bcc);
-                        }
-                        $to = makeEmailBody($item->to);
-                        $obj->emails = [
-                            "to" => $to,
-                            "cc" => $cc,
-                            "bcc" => $bcc,
-                        ];
-
-                        $obj->emailCount = count($to) + count($cc) + count($bcc);
-                        break;
-                    case 2:
-                        $obj->mobiles = makeMobileBody($item);
-                        $obj->mobileCount = count($obj->mobiles);
-                        break;
-                }
-            });
-            $data = [
-                "emails" => $obj->emails,
-                "mobiles" => $obj->mobiles,
-                "variables" => $variables
-            ];
-
-            return ($data);
-        })->toJson();*/
     }
     public function createNewJob($channel_id, $input)
     {

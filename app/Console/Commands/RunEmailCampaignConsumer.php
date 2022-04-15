@@ -43,7 +43,7 @@ class RunEmailCampaignConsumer extends Command
      */
     public function handle()
     {
-        if(empty($this->rabbitmq)){
+        if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
         $this->rabbitmq->dequeue('run_email_campaigns', array($this, 'decodedData'));
@@ -57,13 +57,13 @@ class RunEmailCampaignConsumer extends Command
 
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {
-            $logData=[
-                "actionLog"=>$action_log_id,
-                "exception"=>$e->getMessage(),
-                "stack"=>$e->getTrace()
+            $logData = [
+                "actionLog" => $action_log_id,
+                "exception" => $e->getMessage(),
+                "stack" => $e->getTrace()
             ];
-            logTest("failed job email",$logData);
-            if(empty($this->rabbitmq)){
+            logTest("failed job email", $logData);
+            if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }
             $this->rabbitmq->putInFailedQueue('failed_run_email_campaigns', $msg->getBody());
