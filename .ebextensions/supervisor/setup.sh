@@ -12,13 +12,15 @@ echo "Supervisor - starting setup"
 
 
 
+echo "installing supervisor"
+sudo easy_install supervisor
 
-if [ ! -f /usr/bin/supervisord ]; then
-    echo "installing supervisor"
-    easy_install supervisor
-else
-    echo "supervisor already installed"
-fi
+# if [ ! -f /usr/bin/supervisord ]; then
+#     echo "installing supervisor"
+#     sudo easy_install supervisor
+# else
+#     echo "supervisor already installed"
+# fi
 
 
 if [ ! -d /var/log/supervisor ]; then
