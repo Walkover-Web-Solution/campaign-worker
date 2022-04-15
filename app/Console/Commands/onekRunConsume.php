@@ -48,7 +48,7 @@ class onekRunConsume extends Command
     }
     public function decodedData($msg)
     {
-        // Log::debug("=============== We are in docodedData ===================");
+        printLog("=============== We are in docodedData ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
@@ -59,10 +59,9 @@ class onekRunConsume extends Command
             $logData = [
                 "actionLog" => $campLogId,
                 "exception" => $e->getMessage(),
-                "stack"=>$e->getTrace()
+                "stack" => $e->getTrace()
             ];
-            // Log::debug("Exception in onek",$logData);
-            logTest("failed_1k_queue", $logData);
+            printLog("Exception in onek", 1, $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }

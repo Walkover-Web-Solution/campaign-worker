@@ -2,6 +2,7 @@
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
 function ISTToGMT($date)
@@ -121,4 +122,44 @@ function makeMobileBody($data)
     });
 
     return $obj->arr;
+}
+
+
+function printLog($message, $log, $data = null)
+{
+    // return;
+    switch ($log) {
+        case 1: {
+                Log::debug($message, $data);
+                break;
+            }
+        case 2: {
+                Log::info($message);
+                break;
+            }
+        case 3: {
+                Log::alert($message);
+                break;
+            }
+        case 4: {
+                Log::notice($message);
+                break;
+            }
+        case 5: {
+                Log::error($message);
+                break;
+            }
+        case 6: {
+                Log::warning($message);
+                break;
+            }
+        case 7: {
+                Log::critical($message);
+                break;
+            }
+        case 8: {
+                Log::emergency($message);
+                break;
+            }
+    }
 }

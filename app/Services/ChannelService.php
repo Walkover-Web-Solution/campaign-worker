@@ -38,7 +38,7 @@ class ChannelService
 
     public function sendData($actionLogId)
     {
-        // Log::debug("----- Lets process action log ----------");
+        printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
 
         /**
@@ -48,7 +48,7 @@ class ChannelService
         $input['company'] = $campaign->company;
         config(['msg91.jwt_token' => createJWTToken($input)]);
 
-        // Log::debug("Till now we found Campaign, and created JWT. And now about to find flow action.");
+        printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
 
         /**
@@ -61,7 +61,7 @@ class ChannelService
         /**
          * generating the request body data according to flow channel id
          */
-        // Log::debug("generating the request body data according to flow channel id.");
+        printLog("generating the request body data according to flow channel id.", 2);
         $data = $this->getRequestBody($flow, $md);
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
@@ -71,7 +71,7 @@ class ChannelService
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        // Log::debug('We have successfully send data to SMS.'.$res->data);
+        printLog('We have successfully send data to SMS.' . $res->data, 1);
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res);
 
         if (!empty($new_action_log)) {

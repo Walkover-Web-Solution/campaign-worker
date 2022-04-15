@@ -33,48 +33,47 @@ class RecordService
      */
     public function executeFlowAction($campLogId)
     {
-        // Log::debug("We are here to find flow action and to execute it");
+        printLog("We are here to find flow action and to execute it", 2);
         $camplog = CampaignLog::where('id', $campLogId)->first();
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
         // In case if campaign deleted by user
         if (empty($camp)) {
-            // Log::critical("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx");
+            printLog("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
             throw new Exception("No campaign found.");
         }
 
-        // Log::debug("----- We found Campaign here -----");
-        // Log::debug("Now moving forward to get flowactions for campaign");
+        printLog("----- We found Campaign here -----", 2);
+        printLog("Now moving forward to get flowactions for campaign", 2);
         $allFlow = FlowAction::select('channel_id')->where('campaign_id', $camp->id)->get();
         $flow = FlowAction::where('id', $camp->module_data['op_start'])->first();
         // In case of flowaction deleted by user
-        if (empty($flow)){
-            // Log::error("No flow actions found.");
+        if (empty($flow)) {
+            printLog("No flow actions found.", 5);
             throw new Exception("No flowaction found.");
         }
-            
 
-        // Log::debug("Now fetching for mongo data.");
+        printLog("Now fetching for mongo data.", 2);
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
-        $obj=new \stdClass();
+        $obj = new \stdClass();
         $obj->emailCount = 0;
         $obj->mobileCount = 0;
-        $obj->emails=[];
-        $obj->mobiles=[];
-        $obj->hasChannel=collect($allFlow)->pluck('channel_id')->unique()->toArray();
+        $obj->emails = [];
+        $obj->mobiles = [];
+        $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
         $sendto = collect($md[0]->data->sendTo)->map(function ($item) use ($flow, $obj) {
 
             $variables = collect($item->variables)->toArray();
             $emails = null;
             $mobiles = null;
 
-            collect($obj->hasChannel)->map(function ($channel) use ($flow,$item,$obj) {
+            collect($obj->hasChannel)->map(function ($channel) use ($flow, $item, $obj) {
                 switch ($channel) {
                     case 1:
-                        $cc=[];
-                        $bcc=[];
+                        $cc = [];
+                        $bcc = [];
                         if (isset($item->cc)) {
                             $cc = makeEmailBody($item->cc);
                         }
@@ -127,10 +126,10 @@ class RecordService
             $actionLog = $camp->actionLogs()->create($actionLogData);
 
             if (!empty($actionLog)) {
-                // Log::debug("We have action log now.");
+                printLog("We have action log now.", 2);
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                // Log::debug('Now creating new job according to cahnnel. '.$actionLog->id);
+                printLog("Now creating new job according to cahnnel " . $actionLog->id, 1);
                 $this->createNewJob($flow->channel_id, $input);
             }
         });
@@ -155,12 +154,12 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
         }
-        // Log::debug('About to create job for '.$queue);
+        printLog("About to create job for " . $queue, 1);
         if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
-        $this->rabbitmq->enqueue($queue,$input);
-        // Log::debug('================= Created Job in '.$queue.' =============');
+        $this->rabbitmq->enqueue($queue, $input);
+        printLog("'================= Created Job in " . $queue . " =============", 1);
         // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
 }
