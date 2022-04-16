@@ -50,7 +50,7 @@ class EmailLib
         $jwt = JWTDecode($authorization);
 
         $res = Curl::to($endpoint)
-            ->withHeader('authorization: ' . $authorization)
+            ->withHeader('authorization: ' . $authorization,'Accept: application/json')
             ->withData($input)
             ->asJson()
             ->asJsonResponse()
