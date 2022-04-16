@@ -205,20 +205,22 @@ class ChannelService
         /**
          *  geting the next flow id according to the responce status from microservice
          */
+        if (empty($val))
+            $status = 'Failed';
+        else
+            $status = ucfirst($res->status);
 
+        $action->update(['status' => $status]);
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
             printLog("We are here to create new action log as per module data", 1);
-            if (empty($val))
-                $status = 'Failed';
-            else
-                $status = ucfirst($res->status);
+
             $next_flow_id = null;
             if ($status == 'Success')
-                $next_flow_id = $flow->module_data->op_success;
+                $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
             else
                 $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
 
-            $action->update(['status' => $status]);
+            
             printLog('Get status from microservice ' . $status, 1);
             printLog("Conditions are ", 1, $conditions);
             if (in_array($status, $conditions) && !empty($next_flow_id)) {
