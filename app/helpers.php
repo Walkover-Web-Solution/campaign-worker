@@ -175,7 +175,7 @@ function convertBody($md, $campaign)
 
 function printLog($message, $log = 1, $data = null)
 {
-    return;
+    // return;
     switch ($log) {
         case 1: {
                 if ($data != null)
