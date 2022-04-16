@@ -216,7 +216,7 @@ class ChannelService
             if ($status == 'Success')
                 $next_flow_id = $flow->module_data->op_success;
             else
-                $next_flow_id = $flow->module_data->op_failure;
+                $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
 
             $action->update(['status' => $status]);
             printLog('Get status from microservice ' . $status, 1);
