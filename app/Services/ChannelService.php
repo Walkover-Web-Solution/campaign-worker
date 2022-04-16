@@ -67,18 +67,20 @@ class ChannelService
         $convertedData = convertBody($md, $campaign);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $data = $this->getRequestBody($flow, $convertedData);
+        $reqBody = $this->getRequestBody($flow, $convertedData);
+
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
         $lib = $this->setLibrary($flow['channel_id']);
-        $res = $lib->send($data);
+        $res = $lib->send($reqBody->data);
+
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
         printLog('We have successfully send data to SMS.', 1, empty($res) ? 'NULL RESPONSE' : (array)$res);
 
-        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res);
+        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res ,$reqBody->count);
         // printLog('Got new action log and its id is ' . $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
@@ -87,6 +89,7 @@ class ChannelService
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
             $this->createNewJob($channel_id, $input);
         }
+        
         return;
     }
 
@@ -117,7 +120,8 @@ class ChannelService
          * extracting the all the variables from the mongo data
          */
         $var = $md['variables'];
-
+        $obj = new \stdClass();
+        $obj->count = 0;
         // get template of this flowAction
         $temp = $flow->template;
 
@@ -132,7 +136,8 @@ class ChannelService
         $mongo_data = $md;
         switch ($flow['channel_id']) {
             case 1:
-                $obj = new \stdClass();
+                $cc = [];
+                $bcc = [];
                 $obj->values = [];
                 collect($flow["configurations"])->map(function ($item) use ($obj) {
                     if ($item->name != 'template')
@@ -140,12 +145,12 @@ class ChannelService
                 });
                 if (!empty($mongo_data['emails']['cc'])) {
                     $cc = $mongo_data['emails']['cc'];
-                } else {
+                } else if (!empty($obj->values['cc'])) {
                     $cc = stringToJson($obj->values['cc']);
                 }
                 if (!empty($mongo_data['emails']['bcc'])) {
                     $bcc = $mongo_data['emails']['bcc'];
-                } else {
+                } else if (!empty($obj->values['bcc'])) {
                     $bcc = stringToJson($obj->values['bcc']);
                 }
                 $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
@@ -155,6 +160,12 @@ class ChannelService
                     "name" => $obj->values['from_email_name'],
                     "email" => $email
                 ];
+                $to = $mongo_data['emails']['to'];
+                $obj->count = count(array_filter(collect($to)->pluck('email')->toArray()));
+                if (!empty($cc))
+                    $obj->count += count(array_filter(collect($to)->pluck('email')->toArray()));
+                if (!empty($bcc))
+                    $obj->count += count(array_filter(collect($to)->pluck('email')->toArray()));
                 $data = array(
                     "recipients" => array(
                         [
@@ -174,16 +185,18 @@ class ChannelService
                     'recipients' => $mongo_data['mobiles'],
                     "short_url" => true
                 ];
+                $obj->count=count(array_filter(collect($mongo_data['mobiles'])->pluck('mobiles')->toArray()));
                 break;
             case 3:
                 //
                 break;
         }
-        $data = json_decode(collect($data));
-        return $data;
+        $obj->data = json_decode(collect($data));
+
+        return $obj;
     }
 
-    public function updateActionLogResponse($flow, $action_log, $res)
+    public function updateActionLogResponse($flow, $action_log, $res,$reqDataCount)
     {
 
         printLog("Now sending data to microservice", 1);
@@ -210,7 +223,7 @@ class ChannelService
         else
             $status = ucfirst($res->status);
 
-        $action->update(['status' => $status]);
+        $action->update(['status' => $status,"no_of_records"=>$reqDataCount]);
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
             printLog("We are here to create new action log as per module data", 1);
 
@@ -220,7 +233,7 @@ class ChannelService
             else
                 $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
 
-            
+
             printLog('Get status from microservice ' . $status, 1);
             printLog("Conditions are ", 1, $conditions);
             if (in_array($status, $conditions) && !empty($next_flow_id)) {
@@ -230,7 +243,7 @@ class ChannelService
                     printLog("Found next flow action.");
                     $actionLogData = [
                         "campaign_id" => $action_log->campaign_id,
-                        "no_of_records" => $action_log->no_of_records,
+                        "no_of_records" => "",
                         "ip" => request()->ip(),
                         "status" => "pending",
                         "reason" => "pending",

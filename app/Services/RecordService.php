@@ -64,9 +64,8 @@ class RecordService
                 'data' => $item
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
-            $no_of_records = $camplog->sms_records + $camplog->email_records;
             $actionLogData = [
-                "no_of_records" => $no_of_records,
+                "no_of_records" => $camplog['no_of_contacts'],
                 "ip" => request()->ip(),
                 "status" => "pending",
                 "reason" => "pending",

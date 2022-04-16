@@ -134,21 +134,27 @@ function convertBody($md, $campaign)
     $obj->mobiles = [];
     $item = $md[0]->data;
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
-
-    $variables = collect($item->variables)->toArray();
+    $variables = [];
+    if (!empty($item->variables))
+        $variables = collect($item->variables)->toArray();
 
     $obj->hasChannel->map(function ($channel) use ($item, $obj) {
         switch ($channel) {
             case 1:
                 $cc = [];
                 $bcc = [];
+                $to = makeEmailBody($item->to);
+
+               $to=collect($to)->whereNotNull('email');
+
                 if (isset($item->cc)) {
                     $cc = makeEmailBody($item->cc);
+                    $cc=collect($cc)->whereNotNull('email');
                 }
                 if (isset($item->bcc)) {
                     $bcc = makeEmailBody($item->bcc);
+                    $bcc=collect($bcc)->whereNotNull('email');
                 }
-                $to = makeEmailBody($item->to);
                 $obj->emails = [
                     "to" => $to,
                     "cc" => $cc,
@@ -158,7 +164,7 @@ function convertBody($md, $campaign)
                 $obj->emailCount = count($to) + count($cc) + count($bcc);
                 break;
             case 2:
-                $obj->mobiles = makeMobileBody($item);
+                $obj->mobiles = collect(makeMobileBody($item))->whereNotNull('mobiles');
                 $obj->mobileCount = count($obj->mobiles);
                 break;
         }
