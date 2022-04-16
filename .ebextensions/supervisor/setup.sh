@@ -12,16 +12,16 @@ echo "Supervisor - starting setup"
 
 
 
-# echo "installing supervisor"
+echo "installing supervisor"
 # sudo easy_install supervisor
-
+sudo amazon-linux-extras enable epel
+sudo yum install -y epel-release
+sudo yum -y update
+sudo yum -y install supervisor
 if [ ! -f /usr/bin/supervisord ]; then
     echo "installing supervisor"
     # sudo easy_install supervisor
-    sudo amazon-linux-extras enable epel
-    sudo yum install -y epel-release
-    sudo yum -y update
-    sudo yum -y install supervisor
+    
 else
     echo "supervisor already installed"
 fi
