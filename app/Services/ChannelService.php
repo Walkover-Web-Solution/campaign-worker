@@ -65,6 +65,7 @@ class ChannelService
 
         printLog("converting the contact body data to required context.", 2);
         $convertedData = convertBody($md, $campaign);
+        printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
         $reqBody = $this->getRequestBody($flow, $convertedData);
@@ -77,10 +78,10 @@ class ChannelService
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        printLog('We have successfully send data to SMS.', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
+        printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        // printLog('Got new action log and its id is ' . $new_action_log->id, 1);
+        printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
@@ -165,10 +166,14 @@ class ChannelService
                     $obj->count += count($cc);
                 if (!empty($bcc))
                     $obj->count += count($bcc);
+
+                $emailBody = $mongo_data['emails']['to']->reject(function ($item) {
+                    return empty($item['email']);
+                });
                 $data = array(
                     "recipients" => array(
                         [
-                            "to" => $mongo_data['emails']['to'],
+                            "to" => $emailBody,
                             "cc" => $cc,
                             "bcc" => $bcc,
                             "variables" => json_decode(collect($variables))
@@ -177,19 +182,23 @@ class ChannelService
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id
                 );
+                printLog("GET REQUEST BODY", 1, $data);
                 break;
             case 2: //For SMS
                 $obj->mobilesArr = [];
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables) {
+                    if (empty($item['mobiles'])) {
+                        return;
+                    }
                     $item = array_merge($item, $variables);
                     array_push($obj->mobilesArr, $item);
                 });
+
                 $data = [
                     "flow_id" => $temp->template_id,
                     'recipients' => collect($obj->mobilesArr),
                     "short_url" => true
                 ];
-
                 $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
@@ -207,11 +216,13 @@ class ChannelService
         printLog("Now sending data to microservice", 1);
 
         $val = "";
+        $status = "Success";
         if ($flow->channel_id == 1 && !empty($res) && !$res->hasError) {
             $val = $res->data->unique_id;
         } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
         } else {
+            $status = "Failure";
             printLog("Microservice api failed.");
         }
 
@@ -219,11 +230,11 @@ class ChannelService
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
-         */
-        if (empty($val))
-            $status = 'Failed';
-        else
-            $status = ucfirst($res->status);
+        //  */
+        // if (empty($val))
+        //     $status = 'Failed';
+        // else
+        //     $status = ucfirst($res->status);
 
         // Need to save response received from microservice. - TASK
         $action = ActionLog::where('id', $action_log->id)->first();
