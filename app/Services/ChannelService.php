@@ -80,7 +80,7 @@ class ChannelService
          */
         printLog('We have successfully send data to SMS.', 1, empty($res) ? 'NULL RESPONSE' : (array)$res);
 
-        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res ,$reqBody->count);
+        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
         // printLog('Got new action log and its id is ' . $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
@@ -89,7 +89,7 @@ class ChannelService
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
             $this->createNewJob($channel_id, $input);
         }
-        
+
         return;
     }
 
@@ -133,9 +133,10 @@ class ChannelService
         });
         $variables = array_filter($variables->toArray());
 
+        $data = [];
         $mongo_data = $md;
         switch ($flow['channel_id']) {
-            case 1:
+            case 1: //For Email
                 $cc = [];
                 $bcc = [];
                 $obj->values = [];
@@ -163,9 +164,9 @@ class ChannelService
                 $to = $mongo_data['emails']['to'];
                 $obj->count = count(array_filter(collect($to)->pluck('email')->toArray()));
                 if (!empty($cc))
-                    $obj->count += count(array_filter(collect($to)->pluck('email')->toArray()));
+                    $obj->count += count(array_filter(collect($cc)->pluck('email')->toArray()));
                 if (!empty($bcc))
-                    $obj->count += count(array_filter(collect($to)->pluck('email')->toArray()));
+                    $obj->count += count(array_filter(collect($bcc)->pluck('email')->toArray()));
                 $data = array(
                     "recipients" => array(
                         [
@@ -179,13 +180,14 @@ class ChannelService
                     "template_id" => $temp->template_id
                 );
                 break;
-            case 2:
+            case 2: //For SMS
                 $data = [
                     "flow_id" => $temp->template_id,
                     'recipients' => $mongo_data['mobiles'],
                     "short_url" => true
                 ];
-                $obj->count=count(array_filter(collect($mongo_data['mobiles'])->pluck('mobiles')->toArray()));
+                // Optimize code to get count of mobiles - OPTIMIZE
+                $obj->count = count(array_filter(collect($mongo_data['mobiles'])->pluck('mobiles')->toArray()));
                 break;
             case 3:
                 //
@@ -196,24 +198,21 @@ class ChannelService
         return $obj;
     }
 
-    public function updateActionLogResponse($flow, $action_log, $res,$reqDataCount)
+    public function updateActionLogResponse($flow, $action_log, $res, $reqDataCount)
     {
 
         printLog("Now sending data to microservice", 1);
 
         $val = "";
-        if ($flow->channel_id == 1 && !empty($res)) {
+        if ($flow->channel_id == 1 && !empty($res) && !$res->hasError) {
             $val = $res->data->unique_id;
-        } else if ($flow->channel_id == 2 && !empty($res)) {
+        } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
         } else {
-            //
+            printLog("Microservice api failed.");
         }
-        $action = ActionLog::where('id', $action_log->id)->first();
-        if (!empty($var))
-            $action->update(['ref_id' => $val]);
-        $channel = ChannelType::where('id', $flow->channel_id)->first();
-        $conditions = $channel->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
+
+        $conditions = ChannelType::where('id', $flow->channel_id)->first()->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
@@ -223,7 +222,11 @@ class ChannelService
         else
             $status = ucfirst($res->status);
 
-        $action->update(['status' => $status,"no_of_records"=>$reqDataCount]);
+        // Need to save response received from microservice. - TASK
+        $action = ActionLog::where('id', $action_log->id)->first();
+        $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val]);
+
+        // Change this logic from if else - OPTIMIZE
         if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
             printLog("We are here to create new action log as per module data", 1);
 
@@ -243,7 +246,7 @@ class ChannelService
                     printLog("Found next flow action.");
                     $actionLogData = [
                         "campaign_id" => $action_log->campaign_id,
-                        "no_of_records" => "",
+                        "no_of_records" => 0,
                         "ip" => request()->ip(),
                         "status" => "pending",
                         "reason" => "pending",

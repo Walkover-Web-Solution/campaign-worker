@@ -178,7 +178,10 @@ function convertBody($md, $campaign)
     return $data;
 }
 
-
+/**
+ * This function will print logs in laravel.log file
+ * present in storage/logs folder
+ */
 function printLog($message, $log = 1, $data = null)
 {
     // return;
