@@ -74,11 +74,10 @@ class ChannelService
          */
         $lib = $this->setLibrary($flow['channel_id']);
         $res = $lib->send($reqBody->data);
-
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
-        printLog('We have successfully send data to SMS.', 1, empty($res) ? 'NULL RESPONSE' : (array)$res);
+        printLog('We have successfully send data to SMS.', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
         // printLog('Got new action log and its id is ' . $new_action_log->id, 1);

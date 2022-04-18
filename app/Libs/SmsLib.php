@@ -63,6 +63,7 @@ class SmsLib
             "res" => $res,
         );
         logTest("sms response", $logData);
+        return $res;
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';

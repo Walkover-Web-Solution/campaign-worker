@@ -57,13 +57,16 @@ class EmailLib
             ->asJsonResponse()
             ->$method();
 
+            printLog("before logData");
         $logData = array(
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
             "request"=>$input,
         );
+        printLog("after logData");
         logTest("email response", $logData);
+        return $res;
 
         if (isset($res->hasError) && !empty($res->hasError)) {
             $errorMsg = '';
