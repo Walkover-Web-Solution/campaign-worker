@@ -154,8 +154,7 @@ class ChannelService
                 } else if (!empty($obj->values['bcc'])) {
                     $bcc = stringToJson($obj->values['bcc']);
                 }
-                $domain = empty($obj->values['parent_domain']) ? $obj->values['domain'] : $obj->values['parent_domain'];
-                $domain = $obj->values['domain'];
+                $domain = empty($obj->values['domain']) ? $obj->values['parent_domain'] : $obj->values['domain'];
                 $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
                     "name" => $obj->values['from_email_name'],
