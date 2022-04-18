@@ -161,11 +161,11 @@ class ChannelService
                     "email" => $email
                 ];
                 $to = $mongo_data['emails']['to'];
-                $obj->count = count(array_filter(collect($to)->pluck('email')->toArray()));
+                $obj->count = count($to);
                 if (!empty($cc))
-                    $obj->count += count(array_filter(collect($cc)->pluck('email')->toArray()));
+                    $obj->count += count($cc);
                 if (!empty($bcc))
-                    $obj->count += count(array_filter(collect($bcc)->pluck('email')->toArray()));
+                    $obj->count += count($bcc);
                 $data = array(
                     "recipients" => array(
                         [
@@ -185,8 +185,8 @@ class ChannelService
                     'recipients' => $mongo_data['mobiles'],
                     "short_url" => true
                 ];
-                // Optimize code to get count of mobiles - OPTIMIZE
-                $obj->count = count(array_filter(collect($mongo_data['mobiles'])->pluck('mobiles')->toArray()));
+
+                $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
                 //
@@ -225,42 +225,38 @@ class ChannelService
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val]);
 
-        // Change this logic from if else - OPTIMIZE
-        if (isset($flow->module_data->op_success) || isset($flow->module_data->op_failure)) {
-            printLog("We are here to create new action log as per module data", 1);
+        printLog("We are here to create new action log as per module data", 1);
 
-            $next_flow_id = null;
-            if ($status == 'Success')
-                $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
-            else
-                $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
+        $next_flow_id = null;
+        if ($status == 'Success')
+            $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
+        else
+            $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
 
+        printLog('Get status from microservice ' . $status, 1);
+        printLog("Conditions are ", 1, $conditions);
+        if (in_array($status, $conditions) && !empty($next_flow_id)) {
+            printLog('Next flow id is ' . $next_flow_id, 1);
+            $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+            if (!empty($flow)) {
+                printLog("Found next flow action.");
+                $actionLogData = [
+                    "campaign_id" => $action_log->campaign_id,
+                    "no_of_records" => 0,
+                    "ip" => request()->ip(),
+                    "status" => "pending",
+                    "reason" => "pending",
+                    "ref_id" => "",
+                    "flow_action_id" => $next_flow_id,
+                    "mongo_id" => $action_log->mongo_id,
+                    'campaign_log_id' => $action_log->campaign_log_id
+                ];
+                printLog('Creating new action as per channel id ', 1);
+                $actionLog = $campaign->actionLogs()->create($actionLogData);
 
-            printLog('Get status from microservice ' . $status, 1);
-            printLog("Conditions are ", 1, $conditions);
-            if (in_array($status, $conditions) && !empty($next_flow_id)) {
-                printLog('Next flow id is ' . $next_flow_id, 1);
-                $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
-                if (!empty($flow)) {
-                    printLog("Found next flow action.");
-                    $actionLogData = [
-                        "campaign_id" => $action_log->campaign_id,
-                        "no_of_records" => 0,
-                        "ip" => request()->ip(),
-                        "status" => "pending",
-                        "reason" => "pending",
-                        "ref_id" => "",
-                        "flow_action_id" => $next_flow_id,
-                        "mongo_id" => $action_log->mongo_id,
-                        'campaign_log_id' => $action_log->campaign_log_id
-                    ];
-                    printLog('Creating new action as per channel id ', 1);
-                    $actionLog = $campaign->actionLogs()->create($actionLogData);
-
-                    return $actionLog;
-                } else {
-                    printLog("Didn't found next flow action.");
-                }
+                return $actionLog;
+            } else {
+                printLog("Didn't found next flow action.");
             }
         }
         return;
