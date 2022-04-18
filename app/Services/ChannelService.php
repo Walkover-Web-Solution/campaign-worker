@@ -180,9 +180,14 @@ class ChannelService
                 );
                 break;
             case 2: //For SMS
+                $obj->mobilesArr = [];
+                $mongo_data['mobiles']->map(function ($item) use ($obj, $variables) {
+                    $item = array_merge($item, $variables);
+                    array_push($obj->mobilesArr, $item);
+                });
                 $data = [
                     "flow_id" => $temp->template_id,
-                    'recipients' => $mongo_data['mobiles'],
+                    'recipients' => collect($obj->mobilesArr),
                     "short_url" => true
                 ];
 
