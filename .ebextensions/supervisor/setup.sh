@@ -24,7 +24,7 @@ if [ ! -f /usr/bin/supervisord ]; then
     # sudo yum -y install supervisor
 else
     echo "supervisor already installed"
-    sudo service supervisord restart
+    # sudo service supervisord restart
 fi
 
 
