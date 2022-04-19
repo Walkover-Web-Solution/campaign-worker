@@ -45,7 +45,7 @@ class RunWhatsAppCampaignConsumer extends Command
         if(empty($this->rabbitmq)){
             $this->rabbitmq = new RabbitMQLib;
         }
-        $this->rabbitmq->dequeue('run_otp_campaigns', array($this, 'decodedData'));
+        $this->rabbitmq->dequeue('run_whatsapp_campaigns', array($this, 'decodedData'));
     }
 
     public function decodedData($msg)

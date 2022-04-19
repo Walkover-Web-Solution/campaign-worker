@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
-use App\Libs\OtpLib;
 use App\Libs\RabbitMQLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
@@ -97,16 +96,13 @@ class ChannelService
     {
         $email = 1;
         $sms = 2;
-        $otp = 3;
-        $whatsapp = 4;
-        $voice = 5;
+        $whatsapp = 3;
+        $voice = 4;
         switch ($channel) {
             case $email:
                 return new EmailLib();
             case $sms:
                 return new SmsLib();
-            case $otp:
-                return new OtpLib();
             case $whatsapp:
                 return new WhatsAppLib();
             case $voice:
@@ -305,9 +301,6 @@ class ChannelService
             case 4: {
                 }
                 break;
-            case 5: {
-                }
-                break;
         }
         $res = $lib->getReports($data);
 
@@ -329,12 +322,9 @@ class ChannelService
                 $queue = 'run_sms_campaigns';
                 break;
             case 3:
-                $queue = 'run_otp_campaigns';
-                break;
-            case 4:
                 $queue = 'run_whastapp_campaigns';
                 break;
-            case 5:
+            case 4:
                 $queue = 'run_voice_campaigns';
                 break;
         }
@@ -349,16 +339,13 @@ class ChannelService
     {
         $email = 1;
         $sms = 2;
-        $otp = 3;
-        $whatsapp = 4;
-        $voice = 5;
+        $whatsapp = 3;
+        $voice = 4;
         switch ($channel) {
             case $email:
                 return new EmailService();
             case $sms:
                 return new SmsService();
-            case $otp:
-                return new OtpService();
             case $whatsapp:
                 return new WhatsappService();
             case $voice:

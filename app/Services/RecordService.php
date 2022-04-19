@@ -93,12 +93,9 @@ class RecordService
                 $queue = 'run_sms_campaigns';
                 break;
             case 3:
-                $queue = 'run_otp_campaigns';
-                break;
-            case 4:
                 $queue = 'run_whastapp_campaigns';
                 break;
-            case 5:
+            case 4:
                 $queue = 'run_voice_campaigns';
                 break;
         }
