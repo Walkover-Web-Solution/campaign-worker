@@ -222,7 +222,7 @@ class ChannelService
         } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
         } else {
-            $status = "Failure";
+            $status = "Failed";
             printLog("Microservice api failed.");
         }
 
@@ -246,7 +246,7 @@ class ChannelService
         if ($status == 'Success')
             $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
         else
-            $next_flow_id = isset($flow->module_data->op_failure) ? $flow->module_data->op_failure : null;
+            $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
 
         printLog('Get status from microservice ' . $status, 1);
         printLog("Conditions are ", 1, $conditions);
