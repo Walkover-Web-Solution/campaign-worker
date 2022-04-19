@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
-use App\Libs\OtpLib;
 use App\Libs\RabbitMQLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
@@ -97,16 +96,13 @@ class ChannelService
     {
         $email = 1;
         $sms = 2;
-        $otp = 3;
-        $whatsapp = 4;
-        $voice = 5;
+        $whatsapp = 3;
+        $voice = 4;
         switch ($channel) {
             case $email:
                 return new EmailLib();
             case $sms:
                 return new SmsLib();
-            case $otp:
-                return new OtpLib();
             case $whatsapp:
                 return new WhatsAppLib();
             case $voice:
@@ -167,13 +163,10 @@ class ChannelService
                 if (!empty($bcc))
                     $obj->count += count($bcc);
 
-                $emailBody = $mongo_data['emails']['to']->reject(function ($item) {
-                    return empty($item['email']);
-                });
                 $data = array(
                     "recipients" => array(
                         [
-                            "to" => $emailBody,
+                            "to" => $mongo_data['emails']['to'],
                             "cc" => $cc,
                             "bcc" => $bcc,
                             "variables" => json_decode(collect($variables))
@@ -187,9 +180,6 @@ class ChannelService
             case 2: //For SMS
                 $obj->mobilesArr = [];
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables) {
-                    if (empty($item['mobiles'])) {
-                        return;
-                    }
                     $item = array_merge($item, $variables);
                     array_push($obj->mobilesArr, $item);
                 });
@@ -238,7 +228,7 @@ class ChannelService
 
         // Need to save response received from microservice. - TASK
         $action = ActionLog::where('id', $action_log->id)->first();
-        $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val]);
+        $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
         printLog("We are here to create new action log as per module data", 1);
 
@@ -258,9 +248,9 @@ class ChannelService
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
                     "no_of_records" => 0,
-                    "ip" => request()->ip(),
+                    "response" => "",
                     "status" => "pending",
-                    "reason" => "pending",
+                    "report_status" => "pending",
                     "ref_id" => "",
                     "flow_action_id" => $next_flow_id,
                     "mongo_id" => $action_log->mongo_id,
@@ -311,9 +301,6 @@ class ChannelService
             case 4: {
                 }
                 break;
-            case 5: {
-                }
-                break;
         }
         $res = $lib->getReports($data);
 
@@ -335,12 +322,9 @@ class ChannelService
                 $queue = 'run_sms_campaigns';
                 break;
             case 3:
-                $queue = 'run_otp_campaigns';
-                break;
-            case 4:
                 $queue = 'run_whastapp_campaigns';
                 break;
-            case 5:
+            case 4:
                 $queue = 'run_voice_campaigns';
                 break;
         }
@@ -355,16 +339,13 @@ class ChannelService
     {
         $email = 1;
         $sms = 2;
-        $otp = 3;
-        $whatsapp = 4;
-        $voice = 5;
+        $whatsapp = 3;
+        $voice = 4;
         switch ($channel) {
             case $email:
                 return new EmailService();
             case $sms:
                 return new SmsService();
-            case $otp:
-                return new OtpService();
             case $whatsapp:
                 return new WhatsappService();
             case $voice:
