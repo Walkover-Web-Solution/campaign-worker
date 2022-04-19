@@ -57,7 +57,7 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
-        collect($md[0]->data->sendTo)->map (function($item) use ($camplog,$flow,$camp){
+        collect($md[0]->data->sendTo)->map(function ($item) use ($camplog, $flow, $camp) {
             $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
                 'requestId' => $reqId,
@@ -66,10 +66,10 @@ class RecordService
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
             $actionLogData = [
                 "no_of_records" => 0,
-                "ip" => request()->ip(),
                 "status" => "pending",
-                "reason" => "pending",
+                "report_status" => "pending",
                 "ref_id" => "",
+                "response" => null,
                 "flow_action_id" => $flow->id,
                 "mongo_id" => $reqId,
                 'campaign_log_id' => $camplog->id
