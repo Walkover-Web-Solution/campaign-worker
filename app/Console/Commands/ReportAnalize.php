@@ -59,6 +59,7 @@ class ReportAnalize extends Command
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }
+            printLog('ERROR', 1, (array)$e->getMessage());
             $this->rabbitmq->putInFailedQueue('failed_getReports', $msg->getBody());
         }
         $msg->ack();

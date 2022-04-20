@@ -25,18 +25,34 @@ class EmailService
         $obj->delivered = 0;
         $obj->failed = 0;
 
-        collect($res->data)->map(function ($item) use ($obj) {
-            if ($item->event->title == 'Queued' || $item->event->title == 'Accepted') {
-                $obj->queued++;
-            } else if ($item->event->title == 'Delivered' || $item->event->title == 'Opened' || $item->event->title == 'Unsubscribed' || $item->event->title == 'Clicked') {
-                $obj->delivered++;
-            } else if ($item->event->title == 'Rejected' || $item->event->title == 'Bounced' || $item->event->title == 'Failed' || $item->event->title == 'Complaints') {
-                $obj->failed++;
-            }
-        });
+        if (!$res->hasError) {
+            collect($res->data)->map(function ($item) use ($obj) {
+                if ($item->event->title == 'Queued' || $item->event->title == 'Accepted') {
+                    $obj->queued++;
+                } else if ($item->event->title == 'Delivered' || $item->event->title == 'Opened' || $item->event->title == 'Unsubscribed' || $item->event->title == 'Clicked') {
+                    $obj->delivered++;
+                } else if ($item->event->title == 'Rejected' || $item->event->title == 'Bounced' || $item->event->title == 'Failed' || $item->event->title == 'Complaints') {
+                    $obj->failed++;
+                }
+            });
+        }
+
+        $obj->total = $obj->queued + $obj->delivered + $obj->failed;
+
+        $actionLogReportData = [
+            'total' => $obj->total,
+            'delivered' => $obj->delivered,
+            'failed' => $obj->failed,
+            'pending' => $obj->queued,
+            'additional_fields' => []
+        ];
+        if (empty($actionLog->actionLogReports()->get()->toArray()))
+            $actionLog->actionLogReports()->create($actionLogReportData);
+        else
+            $actionLog->actionLogReports()->update($actionLogReportData);
 
         if ($obj->queued == 0) {
-            $actionLog->status = 'done';
+            $actionLog->report_status = 'done';
         }
 
         if ($actionLog->report_mongo == null) {
@@ -50,10 +66,6 @@ class EmailService
             $actionLog->report_mongo = $reqId;
         } else {
             $this->mongo->collection($collection)->update(["requestId" => $actionLog->report_mongo], ["reportData" => $res]);
-        }
-
-        if ($obj->queued == 0) {
-            $actionLog->status = 'done';
         }
 
         $actionLog->save();

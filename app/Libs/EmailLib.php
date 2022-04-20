@@ -26,7 +26,7 @@ class EmailLib
 
     public function getReports($input)
     {
-        $operation = 'https://test.mailer91.com/api/reports-by-request-id';
+        $operation = 'https://stage.mailer91.com/api/reports-by-request-id';
         return $this->makeAPICAll($operation, $input, 'get');
     }
 
@@ -57,12 +57,12 @@ class EmailLib
             ->asJsonResponse()
             ->$method();
 
-            printLog("before logData");
+        printLog("before logData");
         $logData = array(
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
-            "request"=>$input,
+            "request" => $input,
         );
         printLog("after logData");
         logTest("email response", $logData);
