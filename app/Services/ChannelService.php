@@ -73,7 +73,16 @@ class ChannelService
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
         $lib = $this->setLibrary($flow['channel_id']);
-        $res = $lib->send($reqBody->data);
+        if ($reqBody->count == 0) {
+            $res = new \stdClass();
+            $res->hasError = true;
+            $res->message = "No Data Found";
+        } else {
+            if ($flow['channel_id'] == 2) {
+                printLog("DATA HERE", 1, (array)$data);
+            }
+            $res = $lib->send($reqBody->data);
+        }
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
