@@ -69,6 +69,18 @@ class ChannelService
         printLog("generating the request body data according to flow channel id.", 2);
         $reqBody = $this->getRequestBody($flow, $convertedData);
 
+        //get unique data only and count duplicate
+        $duplicateCount = 0;
+        if ($flow['channel_id'] == 2) {
+            $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
+            //original count
+            $duplicateCount = $reqBody->count;
+            //new count after removing duplicate
+            $reqBody->count = count($reqBody->data->recipients);
+            //calculating duplicate
+            $duplicateCount -= $reqBody->count;
+        }
+
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
@@ -82,6 +94,10 @@ class ChannelService
                 printLog("DATA HERE", 1, (array)$data);
             }
             $res = $lib->send($reqBody->data);
+            //adding duplicate count to response
+            if (!empty($res)) {
+                $res->duplicate = $duplicateCount;
+            }
         }
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
