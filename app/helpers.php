@@ -141,19 +141,21 @@ function convertBody($md, $campaign)
     $obj->hasChannel->map(function ($channel) use ($item, $obj) {
         switch ($channel) {
             case 1:
+                $to = [];
                 $cc = [];
                 $bcc = [];
-                $to = makeEmailBody($item->to);
 
-               $to=collect($to)->whereNotNull('email');
-
+                if (isset($item->to)) {
+                    $to = makeEmailBody($item->to);
+                    $to = collect($to)->whereNotNull('email');
+                }
                 if (isset($item->cc)) {
                     $cc = makeEmailBody($item->cc);
-                    $cc=collect($cc)->whereNotNull('email');
+                    $cc = collect($cc)->whereNotNull('email');
                 }
                 if (isset($item->bcc)) {
                     $bcc = makeEmailBody($item->bcc);
-                    $bcc=collect($bcc)->whereNotNull('email');
+                    $bcc = collect($bcc)->whereNotNull('email');
                 }
                 $obj->emails = [
                     "to" => $to,
