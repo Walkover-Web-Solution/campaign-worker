@@ -17,6 +17,23 @@ class SmsService
         $this->mongo = new MongoDBLib;
     }
 
+    public function makeMobileBody($data)
+    {
+        unset($data->variables);
+        $obj = new \stdClass();
+        $obj->arr = [];
+        collect($data)->map(function ($item) use ($obj) {
+
+            $mob = collect($item)->map(function ($value) {
+                return collect($value)->only('mobiles')->toArray();
+            })->toArray();
+
+            $obj->arr = array_merge($obj->arr, $mob);
+        });
+
+        return $obj->arr;
+    }
+
     public function storeReport($res, $actionLog, $collection)
     {
         $obj = new \stdClass();

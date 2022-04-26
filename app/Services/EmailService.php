@@ -17,6 +17,18 @@ class EmailService
         $this->mongo = new MongoDBLib;
     }
 
+    public function makeEmailBody($data)
+    {
+
+        $mappedData = collect($data)->map(function ($item) {
+
+            return array(
+                "name" => $item->name,
+                "email" => $item->email
+            );
+        })->toArray();
+        return $mappedData;
+    }
 
     public function storeReport($res, $actionLog, $collection)
     {

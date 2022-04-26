@@ -84,7 +84,7 @@ class ChannelService
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
-        $lib = $this->setLibrary($flow['channel_id']);
+        $lib = setLibrary($flow['channel_id']);
         if ($reqBody->count == 0) {
             $res = new \stdClass();
             $res->hasError = true;
@@ -117,23 +117,7 @@ class ChannelService
         return;
     }
 
-    public function setLibrary($channel)
-    {
-        $email = 1;
-        $sms = 2;
-        $whatsapp = 3;
-        $voice = 4;
-        switch ($channel) {
-            case $email:
-                return new EmailLib();
-            case $sms:
-                return new SmsLib();
-            case $whatsapp:
-                return new WhatsAppLib();
-            case $voice:
-                return new VoiceLib();
-        }
-    }
+    
 
     public function getRequestBody($flow, $md)
     {
@@ -305,7 +289,7 @@ class ChannelService
 
         $channelId = FlowAction::where('id', $actionLog->flow_action_id)->pluck('channel_id')->first();
 
-        $lib = $this->setLibrary($channelId);
+        $lib = setLibrary($channelId);
 
         $data = [];
         $collection = '';
@@ -329,7 +313,7 @@ class ChannelService
         }
         $res = $lib->getReports($data);
 
-        $service = $this->setService($channelId);
+        $service = setService($channelId);
 
         $service->storeReport($res, $actionLog, $collection);
     }
@@ -359,22 +343,5 @@ class ChannelService
         }
         $this->rabbitmq->enqueue($queue, $input);
         // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
-    }
-    public function setService($channel)
-    {
-        $email = 1;
-        $sms = 2;
-        $whatsapp = 3;
-        $voice = 4;
-        switch ($channel) {
-            case $email:
-                return new EmailService();
-            case $sms:
-                return new SmsService();
-            case $whatsapp:
-                return new WhatsappService();
-            case $voice:
-                return new VoiceService();
-        }
     }
 }
