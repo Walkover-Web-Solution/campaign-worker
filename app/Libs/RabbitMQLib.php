@@ -17,7 +17,7 @@ class RabbitMQLib{
 		//define('AMQP_DEBUG', true);
 
 
-		if(env('APP_ENV')=='local'){
+		if(env('APP_ENV')=='local' || env('APP_ENV')=='testing' ){
 			$this->connection = new AMQPStreamConnection(config('services.rabbitmq.host'), config('services.rabbitmq.port'), config('services.rabbitmq.username'), config('services.rabbitmq.password'));
 		}else{
 			$timeout = 24*60*60;
