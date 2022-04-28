@@ -39,16 +39,13 @@ function JWTDecode($value)
 
 function createJWTToken($input)
 {
-
     $company = $input['company'];
     $jwt = array(
         'company' => array(
             'id' => $company->ref_id,
             'username' => $company->name,
-            'email' => $company->email,
-            ''
-        ),
-        'need_validation' => true
+            'email' => $company->email
+        )
     );
     if (!empty($input['user'])) {
         $user = $input['user'];
@@ -57,11 +54,9 @@ function createJWTToken($input)
             'username' => $user->name,
             'email' => $user->email
         );
-        $jwt['need_validation'] = false;
     }
-    if (isset($input['token'])) {
-        $jwt['need_validation'] = false; // run case handle,
-    }
+    if (isset($input['need_validation']))
+        $jwt['need_validation'] = $input['need_validation'];
     if (isset($input['ip'])) {
         $jwt['ip'] = $input['ip'];
     }

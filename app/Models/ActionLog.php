@@ -58,4 +58,12 @@ class ActionLog extends Model
     {
         return $this->hasMany(ActionLogReport::class);
     }
+
+    /**
+     * Get campaign log
+     */
+    public function campaignLog()
+    {
+        return $this->belongsTo(CampaignLog::class, 'campaign_log_id');
+    }
 }

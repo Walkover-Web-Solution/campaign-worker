@@ -37,12 +37,15 @@ class ChannelService
     {
         printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
-
         /**
          * generating the token
          */
+        $campaignLog = $action_log->campaignLog;
         $campaign = Campaign::find($action_log->campaign_id);
         $input['company'] = $campaign->company;
+        $input['user'] = $campaign->user;
+        $input['ip'] = $campaignLog->ip;
+        $input['need_validation'] = (bool) $campaignLog->need_validation;
         config(['msg91.jwt_token' => createJWTToken($input)]);
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
