@@ -15,6 +15,7 @@ class CampaignLog extends Model
         'updated_at',
         'no_of_contacts',
         'status',
+        'ip',
         'need_validation'
     ];
 
@@ -28,8 +29,19 @@ class CampaignLog extends Model
         'updated_at'
     ];
 
+    /**
+     * Get Campaign of this Campaign Log
+     */
     public function campaign()
     {
         return $this->belongsTo(Campaign::class, 'campaign_id');
+    }
+
+    /**
+     * Get all action logs belongs to this Campaign Log
+     */
+    public function actionLogs()
+    {
+        return $this->hasMany(ActionLog::class);
     }
 }
