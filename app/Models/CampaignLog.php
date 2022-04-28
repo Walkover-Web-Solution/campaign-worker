@@ -15,11 +15,16 @@ class CampaignLog extends Model
         'updated_at',
         'no_of_contacts',
         'status',
-        'mongo_uid'
+        'need_validation'
+    ];
+
+    protected $casts = [
+        'need_validation' => 'boolean'
     ];
 
     protected $hidden = [
         'created_at',
+        'mongo_uid',
         'updated_at'
     ];
 
