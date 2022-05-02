@@ -14,17 +14,17 @@ class EmailService
     protected $mongo;
     public function __construct()
     {
-        $this->mongo = new MongoDBLib;
+        
     }
 
-    public function makeEmailBody($data)
+    public function createRequestBody($data)
     {
 
         $mappedData = collect($data)->map(function ($item) {
 
             return array(
-                "name" => $item->name,
-                "email" => $item->email
+                "name" => empty($item->name) ? null : $item->name,
+                "email" => empty($item->email) ? null : $item->email
             );
         })->toArray();
         return $mappedData;
@@ -65,6 +65,10 @@ class EmailService
 
         if ($obj->queued == 0) {
             $actionLog->report_status = 'done';
+        }
+
+        if(empty($this->mongo)){
+            $this->mongo = new MongoDBLib;
         }
 
         if ($actionLog->report_mongo == null) {
