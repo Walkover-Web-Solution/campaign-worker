@@ -1,5 +1,16 @@
 <?php
 
+use App\Libs\EmailLib;
+use App\Libs\RcsLib;
+use App\Libs\SmsLib;
+use App\Libs\VoiceLib;
+use App\Libs\WhatsAppLib;
+use App\Models\CampaignLog;
+use App\Services\EmailService;
+use App\Services\RcsService;
+use App\Services\SmsService;
+use App\Services\VoiceService;
+use App\Services\WhatsappService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Log;
@@ -173,6 +184,57 @@ function convertBody($md, $campaign)
     ];
 
     return $data;
+}
+
+function updateCampaignLogStatus(CampaignLog $campaignLog)
+{
+    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
+
+    if ($pendingCount == 0) {
+        $campaignLog->status = "Complete";
+        $campaignLog->save();
+    }
+}
+
+function setLibrary($channel)
+{
+    $email = 1;
+    $sms = 2;
+    $whatsapp = 3;
+    $voice = 4;
+    $rcs = 5;
+    switch ($channel) {
+        case $email:
+            return new EmailLib();
+        case $sms:
+            return new SmsLib();
+        case $whatsapp:
+            return new WhatsAppLib();
+        case $voice:
+            return new VoiceLib();
+        // case $rcs:
+        //     return new RcsLib();
+    }
+}
+function setService($channel)
+{
+    $email = 1;
+    $sms = 2;
+    $whatsapp = 3;
+    $voice = 4;
+    $rcs = 5;
+    switch ($channel) {
+        case $email:
+            return new EmailService();
+        case $sms:
+            return new SmsService();
+        case $whatsapp:
+            return new WhatsappService();
+        case $voice:
+            return new VoiceService();
+        // case $rcs:
+        //     return new RcsService();
+    }
 }
 
 /**

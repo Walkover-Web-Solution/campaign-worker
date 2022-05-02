@@ -15,8 +15,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('check:report')->everyMinute();
+        $schedule->command('check:report')->twiceDaily(7, 19);
         // $schedule->command('inspire')->hourly();
+        $schedule->command('updateStatus:campaignLog')->twiceDaily(7, 19);
     }
 
     /**
@@ -26,7 +27,7 @@ class Kernel extends ConsoleKernel
      */
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
     }
