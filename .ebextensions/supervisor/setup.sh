@@ -13,7 +13,7 @@ echo "Supervisor - starting setup"
 
 
 # echo "installing supervisor"
-sudo easy_install supervisor
+# sudo easy_install supervisor
 
 if [ ! -f /usr/bin/supervisord ]; then
     echo "installing supervisor"
