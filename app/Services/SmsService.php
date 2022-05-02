@@ -14,10 +14,9 @@ class SmsService
     protected $mongo;
     public function __construct()
     {
-        $this->mongo = new MongoDBLib;
     }
 
-    public function makeMobileBody($data)
+    public function createRequestBody($data)
     {
         unset($data->variables);
         $obj = new \stdClass();
@@ -84,6 +83,9 @@ class SmsService
                 "reportData" => $res
             ];
             //inserting data into mongo
+            if(empty($this->mongo)){
+                $this->mongo = new MongoDBLib;
+            }
             $this->mongo->collection($collection)->insertOne($reportData);
             $actionLog->report_mongo = $reqId;
         } else {

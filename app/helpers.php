@@ -121,15 +121,15 @@ function convertBody($md, $campaign)
                 $bcc = [];
 
                 if (isset($item->to)) {
-                    $to = $service->makeEmailBody($item->to);
+                    $to = $service->createRequestBody($item->to);
                     $to = collect($to)->whereNotNull('email');
                 }
                 if (isset($item->cc)) {
-                    $cc = $service->makeEmailBody($item->cc);
+                    $cc = $service->createRequestBody($item->cc);
                     $cc = collect($cc)->whereNotNull('email');
                 }
                 if (isset($item->bcc)) {
-                    $bcc = $service->makeEmailBody($item->bcc);
+                    $bcc = $service->createRequestBody($item->bcc);
                     $bcc = collect($bcc)->whereNotNull('email');
                 }
                 $obj->emails = [
@@ -141,7 +141,7 @@ function convertBody($md, $campaign)
                 $obj->emailCount = count($to) + count($cc) + count($bcc);
                 break;
             case 2:
-                $obj->mobiles = collect($service->makeMobileBody($item))->whereNotNull('mobiles');
+                $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
                 $obj->mobileCount = count($obj->mobiles);
                 break;
         }

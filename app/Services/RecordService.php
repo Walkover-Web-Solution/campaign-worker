@@ -22,8 +22,6 @@ class RecordService
     protected $rabbitmq;
     public function __construct()
     {
-        $this->mongo = new MongoDBLib;
-        $this->rabbitmq = new RabbitMQLib;
     }
 
     /**
@@ -50,6 +48,10 @@ class RecordService
         if (empty($flow)) {
             printLog("No flow actions found.", 5);
             throw new Exception("No flowaction found.");
+        }
+
+        if(empty($this->mongo)){
+            $this->mongo = new MongoDBLib;
         }
 
         printLog("Now fetching for mongo data.", 2);
