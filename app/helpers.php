@@ -1,5 +1,13 @@
 <?php
 
+use App\Libs\EmailLib;
+use App\Libs\SmsLib;
+use App\Libs\VoiceLib;
+use App\Libs\WhatsAppLib;
+use App\Services\EmailService;
+use App\Services\SmsService;
+use App\Services\VoiceService;
+use App\Services\WhatsappService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Log;
@@ -90,35 +98,6 @@ function stringToJson($str)
     return $mappedData;
 }
 
-function makeEmailBody($data)
-{
-
-    $mappedData = collect($data)->map(function ($item) {
-
-        return array(
-            "name" => $item->name,
-            "email" => $item->email
-        );
-    })->toArray();
-    return $mappedData;
-}
-function makeMobileBody($data)
-{
-    unset($data->variables);
-    $obj = new \stdClass();
-    $obj->arr = [];
-    collect($data)->map(function ($item) use ($obj) {
-
-        $mob = collect($item)->map(function ($value) {
-            return collect($value)->only('mobiles')->toArray();
-        })->toArray();
-
-        $obj->arr = array_merge($obj->arr, $mob);
-    });
-
-    return $obj->arr;
-}
-
 function convertBody($md, $campaign)
 {
     $allFlow = $campaign->flowActions()->get();
@@ -134,6 +113,7 @@ function convertBody($md, $campaign)
         $variables = collect($item->variables)->toArray();
 
     $obj->hasChannel->map(function ($channel) use ($item, $obj) {
+        $service = setService($channel);
         switch ($channel) {
             case 1:
                 $to = [];
@@ -141,15 +121,15 @@ function convertBody($md, $campaign)
                 $bcc = [];
 
                 if (isset($item->to)) {
-                    $to = makeEmailBody($item->to);
+                    $to = $service->makeEmailBody($item->to);
                     $to = collect($to)->whereNotNull('email');
                 }
                 if (isset($item->cc)) {
-                    $cc = makeEmailBody($item->cc);
+                    $cc = $service->makeEmailBody($item->cc);
                     $cc = collect($cc)->whereNotNull('email');
                 }
                 if (isset($item->bcc)) {
-                    $bcc = makeEmailBody($item->bcc);
+                    $bcc = $service->makeEmailBody($item->bcc);
                     $bcc = collect($bcc)->whereNotNull('email');
                 }
                 $obj->emails = [
@@ -161,7 +141,7 @@ function convertBody($md, $campaign)
                 $obj->emailCount = count($to) + count($cc) + count($bcc);
                 break;
             case 2:
-                $obj->mobiles = collect(makeMobileBody($item))->whereNotNull('mobiles');
+                $obj->mobiles = collect($service->makeMobileBody($item))->whereNotNull('mobiles');
                 $obj->mobileCount = count($obj->mobiles);
                 break;
         }
@@ -173,6 +153,47 @@ function convertBody($md, $campaign)
     ];
 
     return $data;
+}
+
+function setLibrary($channel)
+{
+    $email = 1;
+    $sms = 2;
+    $whatsapp = 3;
+    $voice = 4;
+    $rcs = 5;
+    switch ($channel) {
+        case $email:
+            return new EmailLib();
+        case $sms:
+            return new SmsLib();
+        case $whatsapp:
+            return new WhatsAppLib();
+        case $voice:
+            return new VoiceLib();
+        // case $rcs:
+        //     return new RcsLib();
+    }
+}
+function setService($channel)
+{
+    $email = 1;
+    $sms = 2;
+    $whatsapp = 3;
+    $voice = 4;
+    $rcs = 5;
+    switch ($channel) {
+        case $email:
+            return new EmailService();
+        case $sms:
+            return new SmsService();
+        case $whatsapp:
+            return new WhatsappService();
+        case $voice:
+            return new VoiceService();
+        // case $rcs:
+        //     return new RcsService();
+    }
 }
 
 /**

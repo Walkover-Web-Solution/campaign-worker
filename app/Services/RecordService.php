@@ -98,6 +98,9 @@ class RecordService
             case 4:
                 $queue = 'run_voice_campaigns';
                 break;
+            case 5:
+                $queue = 'run_rcs_campaigns';
+                break;
         }
         printLog("About to create job for " . $queue, 1);
         if (empty($this->rabbitmq)) {
