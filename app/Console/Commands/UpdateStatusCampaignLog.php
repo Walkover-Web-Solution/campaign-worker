@@ -38,10 +38,13 @@ class UpdateStatusCampaignLog extends Command
      */
     public function handle()
     {
+        printLog("CampaignLogs fetching with status Running");
         $campaignLogs = CampaignLog::where('status', 'Running')->get();
 
+        printLog("CampaignLogs found");
         $campaignLogs->map(function ($campaignLog) {
             updateCampaignLogStatus($campaignLog);
         });
+        printLog("No more campaignLogs");
     }
 }

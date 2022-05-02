@@ -188,11 +188,19 @@ function convertBody($md, $campaign)
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
 {
+    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
+    if (empty($actionLogs)) {
+        printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
+        return;
+    }
+
+    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
     $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
 
     if ($pendingCount == 0) {
         $campaignLog->status = "Complete";
         $campaignLog->save();
+        printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
     }
 }
 
@@ -212,8 +220,8 @@ function setLibrary($channel)
             return new WhatsAppLib();
         case $voice:
             return new VoiceLib();
-        // case $rcs:
-        //     return new RcsLib();
+            // case $rcs:
+            //     return new RcsLib();
     }
 }
 function setService($channel)
@@ -232,8 +240,8 @@ function setService($channel)
             return new WhatsappService();
         case $voice:
             return new VoiceService();
-        // case $rcs:
-        //     return new RcsService();
+            // case $rcs:
+            //     return new RcsService();
     }
 }
 
