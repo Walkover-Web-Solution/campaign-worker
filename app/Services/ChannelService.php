@@ -37,12 +37,15 @@ class ChannelService
     {
         printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
-
         /**
          * generating the token
          */
+        $campaignLog = $action_log->campaignLog;
         $campaign = Campaign::find($action_log->campaign_id);
         $input['company'] = $campaign->company;
+        $input['user'] = $campaign->user;
+        $input['ip'] = $campaignLog->ip;
+        $input['need_validation'] = (bool) $campaignLog->need_validation;
         config(['msg91.jwt_token' => createJWTToken($input)]);
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
@@ -69,11 +72,36 @@ class ChannelService
         printLog("generating the request body data according to flow channel id.", 2);
         $reqBody = $this->getRequestBody($flow, $convertedData);
 
+        //get unique data only and count duplicate
+        $duplicateCount = 0;
+        if ($flow['channel_id'] == 2) {
+            $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
+            //original count
+            $duplicateCount = $reqBody->count;
+            //new count after removing duplicate
+            $reqBody->count = count($reqBody->data->recipients);
+            //calculating duplicate
+            $duplicateCount -= $reqBody->count;
+        }
+
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
-        $lib = $this->setLibrary($flow['channel_id']);
-        $res = $lib->send($reqBody->data);
+        $lib = setLibrary($flow['channel_id']);
+        if ($reqBody->count == 0) {
+            $res = new \stdClass();
+            $res->hasError = true;
+            $res->message = "No Data Found";
+        } else {
+            if ($flow['channel_id'] == 2) {
+                printLog("DATA HERE", 1, (array)$data);
+            }
+            $res = $lib->send($reqBody->data);
+            //adding duplicate count to response
+            if (!empty($res)) {
+                $res->duplicate = $duplicateCount;
+            }
+        }
         /**
          * updating the response comes from the microservice into the ref_id of current flow action
          */
@@ -92,23 +120,7 @@ class ChannelService
         return;
     }
 
-    public function setLibrary($channel)
-    {
-        $email = 1;
-        $sms = 2;
-        $whatsapp = 3;
-        $voice = 4;
-        switch ($channel) {
-            case $email:
-                return new EmailLib();
-            case $sms:
-                return new SmsLib();
-            case $whatsapp:
-                return new WhatsAppLib();
-            case $voice:
-                return new VoiceLib();
-        }
-    }
+    
 
     public function getRequestBody($flow, $md)
     {
@@ -280,7 +292,7 @@ class ChannelService
 
         $channelId = FlowAction::where('id', $actionLog->flow_action_id)->pluck('channel_id')->first();
 
-        $lib = $this->setLibrary($channelId);
+        $lib = setLibrary($channelId);
 
         $data = [];
         $collection = '';
@@ -304,7 +316,7 @@ class ChannelService
         }
         $res = $lib->getReports($data);
 
-        $service = $this->setService($channelId);
+        $service = setService($channelId);
 
         $service->storeReport($res, $actionLog, $collection);
     }
@@ -334,22 +346,5 @@ class ChannelService
         }
         $this->rabbitmq->enqueue($queue, $input);
         // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
-    }
-    public function setService($channel)
-    {
-        $email = 1;
-        $sms = 2;
-        $whatsapp = 3;
-        $voice = 4;
-        switch ($channel) {
-            case $email:
-                return new EmailService();
-            case $sms:
-                return new SmsService();
-            case $whatsapp:
-                return new WhatsappService();
-            case $voice:
-                return new VoiceService();
-        }
     }
 }

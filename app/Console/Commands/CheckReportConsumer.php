@@ -44,7 +44,8 @@ class CheckReportConsumer extends Command
      */
     public function handle()
     {
-        $actionlogs = ActionLog::where('status', 'pending')->where('created_at', '<', Carbon::parse('-6 hours'))->get();
+        $actionlogs = ActionLog::where('report_status', 'pending')->whereNotNull('ref_id')->where('created_at', '<', Carbon::parse('-0 hours'))->get();
+        // dd($actionlogs->pluck('id'));
         $actionlogs->map(function ($actionLog) {
             $queue = 'getReports';
             $input = ["action_log_id" => $actionLog->id];
