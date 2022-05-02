@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class ChannelTypeCondition extends Pivot
+class ChannelTypeEvent extends Pivot
 {
     use HasFactory;
 
     protected $fillable = [
         'channel_id ',
-        'condition_id',
+        'event_id',
     ];
 
     protected $hidden = array(

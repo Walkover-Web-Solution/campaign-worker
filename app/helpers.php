@@ -119,7 +119,6 @@ function convertBody($md, $campaign)
                 $to = [];
                 $cc = [];
                 $bcc = [];
-
                 if (isset($item->to)) {
                     $to = $service->createRequestBody($item->to);
                     $to = collect($to)->whereNotNull('email');

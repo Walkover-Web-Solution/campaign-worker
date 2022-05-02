@@ -120,7 +120,7 @@ class ChannelService
         return;
     }
 
-    
+
 
     public function getRequestBody($flow, $md)
     {
@@ -228,11 +228,11 @@ class ChannelService
             printLog("Microservice api failed.");
         }
 
-        $conditions = ChannelType::where('id', $flow->channel_id)->first()->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
+        $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
-        //  */
+        */
         // if (empty($val))
         //     $status = 'Failed';
         // else
@@ -251,8 +251,8 @@ class ChannelService
             $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
 
         printLog('Get status from microservice ' . $status, 1);
-        printLog("Conditions are ", 1, $conditions);
-        if (in_array($status, $conditions) && !empty($next_flow_id)) {
+        printLog("Enents are ", 1, $events);
+        if (in_array($status, $events) && !empty($next_flow_id)) {
             printLog('Next flow id is ' . $next_flow_id, 1);
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
             if (!empty($flow)) {

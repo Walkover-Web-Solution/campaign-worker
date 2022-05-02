@@ -17,7 +17,7 @@ class EmailService
         $this->mongo = new MongoDBLib;
     }
 
-    public function makeEmailBody($data)
+    public function createRequestBody($data)
     {
 
         $mappedData = collect($data)->map(function ($item) {
