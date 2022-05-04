@@ -16,6 +16,7 @@ use App\Models\ChannelType;
 use App\Models\Company;
 use App\Models\FlowAction;
 use App\Models\Template;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use MongoDB\Model\BSONArray;
@@ -108,13 +109,14 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
+        $delayTime=collect($flow->configurations)->firstWhere('name','delay');
         printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            $this->createNewJob($channel_id, $input);
+            $this->createNewJob($channel_id, $input,$delayTime->value);
         }
 
         return;
@@ -323,7 +325,7 @@ class ChannelService
 
 
 
-    public function createNewJob($channel_id, $input)
+    public function createNewJob($channel_id, $input,$delayTime)
     {
         //selecting the queue name as per the flow channel id
         switch ($channel_id) {
@@ -344,7 +346,7 @@ class ChannelService
         if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
-        $this->rabbitmq->enqueue($queue, $input);
-        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
+        // $this->rabbitmq->enqueue($queue, $input);
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime)); //dispatching the job
     }
 }

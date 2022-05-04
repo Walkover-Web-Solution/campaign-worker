@@ -51,10 +51,13 @@ class RunEmailCampaignConsumer extends Command
     public function decodedData($msg)
     {
         try {
+
             printLog("======== Found job in email queue ========", 2);
             $message = json_decode($msg->getBody(), true);
             printLog("Decoding data from job ", 1, (array)$message);
-            $action_log_id = $message['action_log_id'];
+            $message = json_decode($msg->getBody(), true);
+            $obj = $message['data']['command'];
+            $action_log_id = unserialize($obj)->data->action_log_id;
             $channelService = new ChannelService();
 
             $channelService->sendData($action_log_id);
