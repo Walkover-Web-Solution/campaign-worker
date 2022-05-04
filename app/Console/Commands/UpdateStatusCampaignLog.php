@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\CampaignLog;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class UpdateStatusCampaignLog extends Command
@@ -39,7 +40,7 @@ class UpdateStatusCampaignLog extends Command
     public function handle()
     {
         printLog("CampaignLogs fetching with status Running");
-        $campaignLogs = CampaignLog::where('status', 'Running')->get();
+        $campaignLogs = CampaignLog::where('status', 'Running')->where('created_at', '<', Carbon::parse('-1 hours'))->get();
 
         printLog("CampaignLogs found");
         $campaignLogs->map(function ($campaignLog) {
