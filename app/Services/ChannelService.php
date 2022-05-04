@@ -186,7 +186,7 @@ class ChannelService
                     ),
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
-                    "domain" => $domain
+                    "domain" => $obj->values['parent_domain']
                 );
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
