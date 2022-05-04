@@ -4,6 +4,7 @@ use App\Libs\EmailLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\FlowAction;
 use App\Services\EmailService;
 use App\Services\SmsService;
 use App\Services\VoiceService;
@@ -154,6 +155,24 @@ function convertBody($md, $campaign)
     return $data;
 }
 
+function handleCondition(FlowAction $flowAction)
+{
+    $conditionId = collect($flowAction->configurations)->firstWhere('name', 'Condition')->value;
+
+    switch ($conditionId) {
+        case 1: {
+                //
+            }
+            break;
+        default: {
+                //
+            }
+    }
+    // $condition = Condition::where('id', $conditionId);
+    $flowAction = FlowAction::where('id', $flowAction->module_data->op_success)->first();
+    return $flowAction;
+}
+
 function setLibrary($channel)
 {
     $email = 1;
@@ -170,8 +189,8 @@ function setLibrary($channel)
             return new WhatsAppLib();
         case $voice:
             return new VoiceLib();
-        // case $rcs:
-        //     return new RcsLib();
+            // case $rcs:
+            //     return new RcsLib();
     }
 }
 function setService($channel)
@@ -190,8 +209,8 @@ function setService($channel)
             return new WhatsappService();
         case $voice:
             return new VoiceService();
-        // case $rcs:
-        //     return new RcsService();
+            // case $rcs:
+            //     return new RcsService();
     }
 }
 
