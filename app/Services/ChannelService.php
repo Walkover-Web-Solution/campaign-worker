@@ -32,6 +32,7 @@ class ChannelService
     protected $rabbitmq;
     public function __construct()
     {
+        //
     }
 
     public function sendData($actionLogId)
@@ -51,6 +52,11 @@ class ChannelService
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
+
+        // handling condition
+        while ($flow->channel_id == 5) {
+            $flow = handleCondition($flow);
+        }
 
         if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
@@ -234,7 +240,7 @@ class ChannelService
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
-        */
+         */
         // if (empty($val))
         //     $status = 'Failed';
         // else

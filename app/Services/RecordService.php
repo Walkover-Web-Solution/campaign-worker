@@ -7,6 +7,7 @@ use App\Libs\MongoDBLib;
 use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
+use App\Models\Condition;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
@@ -50,7 +51,12 @@ class RecordService
             throw new Exception("No flowaction found.");
         }
 
-        if(empty($this->mongo)){
+        // handling condition
+        while ($flow->channel_id == 5) {
+            $flow = handleCondition($flow);
+        }
+
+        if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
 
