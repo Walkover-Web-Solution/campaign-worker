@@ -1,10 +1,13 @@
 <?php
 
 use App\Libs\EmailLib;
+use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\CampaignLog;
 use App\Services\EmailService;
+use App\Services\RcsService;
 use App\Services\SmsService;
 use App\Services\VoiceService;
 use App\Services\WhatsappService;
@@ -155,6 +158,24 @@ function convertBody($md, $campaign)
     return $data;
 }
 
+function updateCampaignLogStatus(CampaignLog $campaignLog)
+{
+    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
+    if (empty($actionLogs)) {
+        printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
+        return;
+    }
+
+    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
+    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
+
+    if ($pendingCount == 0) {
+        $campaignLog->status = "Complete";
+        $campaignLog->save();
+        printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
+    }
+}
+
 function setLibrary($channel)
 {
     $email = 1;
@@ -171,8 +192,8 @@ function setLibrary($channel)
             return new WhatsAppLib();
         case $voice:
             return new VoiceLib();
-        // case $rcs:
-        //     return new RcsLib();
+            // case $rcs:
+            //     return new RcsLib();
     }
 }
 function setService($channel)
@@ -191,8 +212,8 @@ function setService($channel)
             return new WhatsappService();
         case $voice:
             return new VoiceService();
-        // case $rcs:
-        //     return new RcsService();
+            // case $rcs:
+            //     return new RcsService();
     }
 }
 
