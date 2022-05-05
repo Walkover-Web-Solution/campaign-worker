@@ -83,15 +83,15 @@ class RecordService
                 'campaign_log_id' => $camplog->id
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
-            $delayTime=collect($flow->configurations)->firstWhere('name','delay');
+            $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input,$delayTime->value);
+                $this->createNewJob($flow->channel_id, $input, $delayTime->value);
             }
         });
     }
-    public function createNewJob($channel_id, $input,$delayTime)
+    public function createNewJob($channel_id, $input, $delayTime)
     {
         //selecting the queue name as per the flow channel id
         switch ($channel_id) {
@@ -108,6 +108,9 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
             case 5:
+                $queue = 'condition_queue';
+                break;
+            case 6:
                 $queue = 'run_rcs_campaigns';
                 break;
         }
@@ -118,6 +121,5 @@ class RecordService
         // $this->rabbitmq->enqueue($queue, $input);
         RabbitMQJob::dispatch($input)->delay(Carbon::now()->addSeconds($delayTime))->onQueue($queue); //dispatching the job
         printLog("'================= Created Job in " . $queue . " =============", 1);
-
     }
 }

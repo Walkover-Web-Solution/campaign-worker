@@ -9,6 +9,7 @@
         "firebase/php-jwt": "^6.0",
         "fruitcake/laravel-cors": "^2.0",
         "getsolaris/laravel-make-service": "^1.0",
+        "giggsey/libphonenumber-for-php": "8.12.47.1",
         "guzzlehttp/guzzle": "^7.0.1",
         "ixudra/curl": "^6.22",
         "jenssegers/mongodb": "^3.8",

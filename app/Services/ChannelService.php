@@ -53,6 +53,7 @@ class ChannelService
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
 
+
         // handling condition
         while ($flow->channel_id == 5) {
             $flow = handleCondition($flow);
@@ -127,7 +128,6 @@ class ChannelService
 
         return;
     }
-
 
 
     public function getRequestBody($flow, $md)
@@ -263,6 +263,7 @@ class ChannelService
         if (in_array($status, $events) && !empty($next_flow_id)) {
             printLog('Next flow id is ' . $next_flow_id, 1);
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+
             if (!empty($flow)) {
                 printLog("Found next flow action.");
                 $actionLogData = [
@@ -286,9 +287,7 @@ class ChannelService
         }
         return;
     }
-    public function creteNextActionLog()
-    {
-    }
+
     public function getReports($actionLogId)
     {
         $actionLog = ActionLog::where('id', $actionLogId)->first();
@@ -346,6 +345,9 @@ class ChannelService
                 break;
             case 4:
                 $queue = 'run_voice_campaigns';
+                break;
+            case 5:
+                $queue='condition_queue';
                 break;
         }
         // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
