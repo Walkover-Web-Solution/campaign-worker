@@ -22,4 +22,12 @@ class Condition extends Model
         'created_at',
         'updated_at',
     );
+
+    /**
+     * get all filters of this Condition
+     */
+    public function filters()
+    {
+        return $this->belongsToMany(Filter::class);
+    }
 }

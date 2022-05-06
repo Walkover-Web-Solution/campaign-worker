@@ -13,7 +13,7 @@ use App\Services\VoiceService;
 use App\Services\WhatsappService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Support\Facades\Cache as FacadesCache;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
@@ -162,17 +162,22 @@ function handleCondition(FlowAction $flowAction)
 {
     dd($flowAction);
     $conditionId = collect($flowAction->configurations)->firstWhere('name', 'Condition')->value;
+    $condition = Condition::where('id', $conditionId)->first();
+    $filter = $condition->filters()->first();
 
     switch ($conditionId) {
         case 1: {
-                //
+                $countriesJson = Cache::get('countriesJson');
+                if (empty($countriesJson)) {
+                    $countriesJson = json_decode(file_get_contents($filter->source));
+                    Cache::put('countriesJson', $countriesJson, 86400);
+                }
             }
             break;
         default: {
                 //
             }
     }
-    // $condition = Condition::where('id', $conditionId);
     $flowAction = FlowAction::where('id', $flowAction->module_data->op_success)->first();
     return $flowAction;
 }
@@ -267,10 +272,10 @@ function printLog($message, $log = 1, $data = null)
 function validPhoneNumber($mobile, $filter)
 {
     $path = Filter::where('name', 'countries')->pluck('source')->first();
-    $countriesJson = FacadesCache::get('countriesJson');
+    $countriesJson = Cache::get('countriesJson');
     if (empty($countriesJson)) {
         $countriesJson = json_decode(file_get_contents($path));
-        FacadesCache::put('countriesJson', $countriesJson, 86400);
+        Cache::put('countriesJson', $countriesJson, 86400);
     }
     $code = collect($countriesJson)->pluck('International dialing')->toArray();
     for ($i = 4; $i > 0; $i--) {
