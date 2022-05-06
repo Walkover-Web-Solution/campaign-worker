@@ -57,7 +57,7 @@ class ConditionService
                     'data' => $data
                 ];
 
-                $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
+                $mongoId = $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
                     "no_of_records" => 0,
