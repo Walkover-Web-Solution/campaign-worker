@@ -158,30 +158,6 @@ function convertBody($md, $campaign)
     return $data;
 }
 
-function handleCondition(FlowAction $flowAction)
-{
-    dd($flowAction);
-    $conditionId = collect($flowAction->configurations)->firstWhere('name', 'Condition')->value;
-    $condition = Condition::where('id', $conditionId)->first();
-    $filter = $condition->filters()->first();
-
-    switch ($conditionId) {
-        case 1: {
-                $countriesJson = Cache::get('countriesJson');
-                if (empty($countriesJson)) {
-                    $countriesJson = json_decode(file_get_contents($filter->source));
-                    Cache::put('countriesJson', $countriesJson, 86400);
-                }
-            }
-            break;
-        default: {
-                //
-            }
-    }
-    $flowAction = FlowAction::where('id', $flowAction->module_data->op_success)->first();
-    return $flowAction;
-}
-
 function setLibrary($channel)
 {
     $email = 1;

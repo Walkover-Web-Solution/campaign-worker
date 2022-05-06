@@ -51,11 +51,6 @@ class RecordService
             throw new Exception("No flowaction found.");
         }
 
-        // handling condition
-        while ($flow->channel_id == 5) {
-            $flow = handleCondition($flow);
-        }
-
         if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
