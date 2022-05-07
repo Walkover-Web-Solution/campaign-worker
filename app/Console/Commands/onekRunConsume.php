@@ -61,6 +61,7 @@ class onekRunConsume extends Command
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
+            logTest("failed job 1k", $logData);
             printLog("Exception in onek", 1, $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;

@@ -16,6 +16,7 @@ use App\Models\ChannelType;
 use App\Models\Company;
 use App\Models\FlowAction;
 use App\Models\Template;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use MongoDB\Model\BSONArray;
@@ -31,6 +32,7 @@ class ChannelService
     protected $rabbitmq;
     public function __construct()
     {
+        //
     }
 
     public function sendData($actionLogId)
@@ -108,19 +110,19 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
+        $delayTime=collect($flow->configurations)->firstWhere('name','delay');
         printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            $this->createNewJob($channel_id, $input);
+            $this->createNewJob($channel_id, $input,$delayTime->value);
         }
 
         return;
     }
 
-    
 
     public function getRequestBody($flow, $md)
     {
@@ -229,11 +231,11 @@ class ChannelService
             printLog("Microservice api failed.");
         }
 
-        $conditions = ChannelType::where('id', $flow->channel_id)->first()->conditions()->pluck('name')->toArray(); //generating an array of all the condition belong to flow channel id
+        $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
         $campaign = Campaign::find($action_log->campaign_id);
         /**
          *  geting the next flow id according to the responce status from microservice
-        //  */
+         */
         // if (empty($val))
         //     $status = 'Failed';
         // else
@@ -252,10 +254,11 @@ class ChannelService
             $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
 
         printLog('Get status from microservice ' . $status, 1);
-        printLog("Conditions are ", 1, $conditions);
-        if (in_array($status, $conditions) && !empty($next_flow_id)) {
+        printLog("Enents are ", 1, $events);
+        if (in_array($status, $events) && !empty($next_flow_id)) {
             printLog('Next flow id is ' . $next_flow_id, 1);
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+
             if (!empty($flow)) {
                 printLog("Found next flow action.");
                 $actionLogData = [
@@ -279,9 +282,7 @@ class ChannelService
         }
         return;
     }
-    public function creteNextActionLog()
-    {
-    }
+
     public function getReports($actionLogId)
     {
         $actionLog = ActionLog::where('id', $actionLogId)->first();
@@ -324,7 +325,7 @@ class ChannelService
 
 
 
-    public function createNewJob($channel_id, $input)
+    public function createNewJob($channel_id, $input,$delayTime)
     {
         //selecting the queue name as per the flow channel id
         switch ($channel_id) {
@@ -340,12 +341,15 @@ class ChannelService
             case 4:
                 $queue = 'run_voice_campaigns';
                 break;
+            case 5:
+                $queue='condition_queue';
+                break;
         }
         // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
         if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
-        $this->rabbitmq->enqueue($queue, $input);
-        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
+        // $this->rabbitmq->enqueue($queue, $input);
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime)); //dispatching the job
     }
 }

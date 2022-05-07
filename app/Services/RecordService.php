@@ -7,6 +7,7 @@ use App\Libs\MongoDBLib;
 use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
+use App\Models\Condition;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
@@ -50,7 +51,7 @@ class RecordService
             throw new Exception("No flowaction found.");
         }
 
-        if(empty($this->mongo)){
+        if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
 
@@ -77,14 +78,15 @@ class RecordService
                 'campaign_log_id' => $camplog->id
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
+            $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input);
+                $this->createNewJob($flow->channel_id, $input, $delayTime->value);
             }
         });
     }
-    public function createNewJob($channel_id, $input)
+    public function createNewJob($channel_id, $input, $delayTime)
     {
         //selecting the queue name as per the flow channel id
         switch ($channel_id) {
@@ -101,6 +103,9 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
             case 5:
+                $queue = 'condition_queue';
+                break;
+            case 6:
                 $queue = 'run_rcs_campaigns';
                 break;
         }
@@ -108,8 +113,8 @@ class RecordService
         if (empty($this->rabbitmq)) {
             $this->rabbitmq = new RabbitMQLib;
         }
-        $this->rabbitmq->enqueue($queue, $input);
+        // $this->rabbitmq->enqueue($queue, $input);
+        RabbitMQJob::dispatch($input)->delay(Carbon::now()->addSeconds($delayTime))->onQueue($queue); //dispatching the job
         printLog("'================= Created Job in " . $queue . " =============", 1);
-        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
 }

@@ -6,6 +6,9 @@ use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
 use App\Models\CampaignLog;
+use App\Models\Condition;
+use App\Models\Filter;
+use App\Models\FlowAction;
 use App\Services\EmailService;
 use App\Services\RcsService;
 use App\Services\SmsService;
@@ -13,6 +16,7 @@ use App\Services\VoiceService;
 use App\Services\WhatsappService;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
@@ -122,7 +126,6 @@ function convertBody($md, $campaign)
                 $to = [];
                 $cc = [];
                 $bcc = [];
-
                 if (isset($item->to)) {
                     $to = $service->createRequestBody($item->to);
                     $to = collect($to)->whereNotNull('email');
@@ -260,5 +263,25 @@ function printLog($message, $log = 1, $data = null)
                 Log::emergency($message);
                 break;
             }
+    }
+}
+
+function validPhoneNumber($mobile, $filter)
+{
+    $path = Filter::where('name', 'countries')->pluck('source')->first();
+    $countriesJson = Cache::get('countriesJson');
+    if (empty($countriesJson)) {
+        $countriesJson = json_decode(file_get_contents($path));
+        Cache::put('countriesJson', $countriesJson, 86400);
+    }
+    $code = collect($countriesJson)->pluck('International dialing')->toArray();
+    for ($i = 4; $i > 0; $i--) {
+        $mobileCode = substr($mobile, 0, $i);
+
+        if (in_array($mobileCode, $code)) {
+            $codeData = collect($countriesJson)->firstWhere('International dialing', $mobileCode);
+            $codeData = (array)$codeData;
+            return $codeData['Country code'] == $filter ? true : false;
+        }
     }
 }

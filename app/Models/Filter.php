@@ -5,29 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Condition extends Model
+class Filter extends Model
 {
     use HasFactory;
     protected $fillable = [
         'name',
-        'configurations'
+        'source'
     ];
-
-    protected $casts = array(
-        'configurations' => 'object',
-    );
-
 
     protected $hidden = array(
         'created_at',
         'updated_at',
+        'pivot'
     );
-
-    /**
-     * get all filters of this Condition
-     */
-    public function filters()
-    {
-        return $this->belongsToMany(Filter::class);
-    }
 }
