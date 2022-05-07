@@ -110,14 +110,19 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        $delayTime=collect($flow->configurations)->firstWhere('name','delay');
+        $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+        if (empty($delayTime)) {
+            $delayValue = 0;
+        } else {
+            $delayValue = $delayTime->value;
+        }
         printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            $this->createNewJob($channel_id, $input,$delayTime->value);
+            $this->createNewJob($channel_id, $input, $delayValue);
         }
 
         return;
@@ -325,7 +330,7 @@ class ChannelService
 
 
 
-    public function createNewJob($channel_id, $input,$delayTime)
+    public function createNewJob($channel_id, $input, $delayTime)
     {
         //selecting the queue name as per the flow channel id
         switch ($channel_id) {
@@ -342,7 +347,7 @@ class ChannelService
                 $queue = 'run_voice_campaigns';
                 break;
             case 5:
-                $queue='condition_queue';
+                $queue = 'condition_queue';
                 break;
         }
         // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);

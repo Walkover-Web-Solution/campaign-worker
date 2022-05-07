@@ -79,10 +79,15 @@ class RecordService
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
             $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+            if (empty($delayTime)) {
+                $delayValue = 0;
+            } else {
+                $delayValue = $delayTime->value;
+            }
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input, $delayTime->value);
+                $this->createNewJob($flow->channel_id, $input, $delayValue);
             }
         });
     }
