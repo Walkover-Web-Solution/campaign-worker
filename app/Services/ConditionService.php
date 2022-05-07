@@ -66,16 +66,21 @@ class ConditionService
                     "report_status" => "pending",
                     "ref_id" => "",
                     "flow_action_id" => $newFlowAction->id,
-                    "mongo_id" => $reqId ,
+                    "mongo_id" => $reqId,
                     'campaign_log_id' => $action_log->campaign_log_id
                 ];
                 printLog('Creating new action as per channel id ', 1);
                 $actionLog = $campaign->actionLogs()->create($actionLogData);
                 $delayTime = collect($newFlowAction->configurations)->firstWhere('name', 'delay');
+                if (empty($delayTime)) {
+                    $delayValue = 0;
+                } else {
+                    $delayValue = $delayTime->value;
+                }
                 if (!empty($actionLog)) {
                     $input = new \stdClass();
                     $input->action_log_id =  $actionLog->id;
-                    $this->createNewJob($newFlowAction->channel_id, $input, $delayTime->value);
+                    $this->createNewJob($newFlowAction->channel_id, $input, $delayValue);
                 }
             }
         });
