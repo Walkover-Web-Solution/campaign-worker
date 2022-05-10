@@ -11,6 +11,7 @@ use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
 use libphonenumber\PhoneNumberUtil;
+use stdClass;
 
 /**
  * Class ConditionService
@@ -40,71 +41,89 @@ class ConditionService
             'requestId' => $action_log->mongo_id
         ]);
         $md = json_decode(json_encode($data));
+        $conditionId = collect($flow->configurations)->firstWhere('name', 'Condition')->value;
+        $countries = 1;
+        switch ($conditionId) {
+            case $countries: {
+                    $op_filters_groups = new \stdClass;
+                    collect($flow->module_data)->map(function ($item, $key) use ($op_filters_groups, $flow) {
+                        if (\Str::endsWith($key, 'grp_id')) {
+                            $arr = explode('_', $key);
+                            $op_key = $arr[0] . '_' . $arr[1];
+                            $vv = $flow->module_data->$op_key;
+                            if (empty($op_filters_groups->$item))
+                                $op_filters_groups->$item = [];
+                            $op_filters_groups->$item = array_merge($op_filters_groups->$item, [$arr[1] => $vv]);
+                        }
+                    });
 
-        collect($flow->module_data)->map(function ($nextFlowId, $filter) use ($md, $action_log, $campaign) {
+                    collect($op_filters_groups)->map(function ($op_filters_group) use ($md, $action_log, $campaign) {
+                        $op_filters = collect($op_filters_group)->keys()->toArray();
+                        $op_value = collect($op_filters_group)->first();
+                        if (!empty($op_value)) {
+                            $newFlowAction = FlowAction::where('id', $op_value)->first();
 
-            if (!empty($nextFlowId)) {
-                $filter = substr($filter, 3);
-                $newFlowAction = FlowAction::where('id', $nextFlowId)->first();
+                            /**
+                             * function that will make a filter according to the coountry
+                             */
+                            $data = $this->generateFilterData($md[0]->data, $op_filters);
+                            $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
+                            $filterdata_mongoID = [
+                                'requestId' => $reqId,
+                                'data' => $data
+                            ];
 
-                /**
-                 * function that will make a filter according to the coountry
-                 */
-                $data = $this->generateFilterData($md[0]->data, $filter);
-                $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
-                $filterdata_mongoID = [
-                    'requestId' => $reqId,
-                    'data' => $data
-                ];
+                            $mongoId = $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
+                            $actionLogData = [
+                                "campaign_id" => $action_log->campaign_id,
+                                "no_of_records" => 0,
+                                "response" => "",
+                                "status" => "pending",
+                                "report_status" => "pending",
+                                "ref_id" => "",
+                                "flow_action_id" => $newFlowAction->id,
+                                "mongo_id" => $reqId,
+                                'campaign_log_id' => $action_log->campaign_log_id
+                            ];
+                            printLog('Creating new action as per channel id ', 1);
+                            $actionLog = $campaign->actionLogs()->create($actionLogData);
+                            $delayTime = collect($newFlowAction->configurations)->firstWhere('name', 'delay');
+                            if (!empty($actionLog)) {
+                                $input = new \stdClass();
+                                $input->action_log_id =  $actionLog->id;
+                                $this->createNewJob($newFlowAction->channel_id, $input, $delayTime->value);
+                            }
+                        }
+                    });
 
-                $mongoId = $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
-                $actionLogData = [
-                    "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => 0,
-                    "response" => "",
-                    "status" => "pending",
-                    "report_status" => "pending",
-                    "ref_id" => "",
-                    "flow_action_id" => $newFlowAction->id,
-                    "mongo_id" => $reqId,
-                    'campaign_log_id' => $action_log->campaign_log_id
-                ];
-                printLog('Creating new action as per channel id ', 1);
-                $actionLog = $campaign->actionLogs()->create($actionLogData);
-                $delayTime = collect($newFlowAction->configurations)->firstWhere('name', 'delay');
-                if (empty($delayTime)) {
-                    $delayValue = 0;
-                } else {
-                    $delayValue = $delayTime->value;
+                    $action_log->status = "Consumed";
+                    $action_log->save();
                 }
-                if (!empty($actionLog)) {
-                    $input = new \stdClass();
-                    $input->action_log_id =  $actionLog->id;
-                    $this->createNewJob($newFlowAction->channel_id, $input, $delayValue);
+                break;
+            default: {
+                    //
                 }
-            }
-        });
+                break;
+        }
     }
 
-    public function generateFilterData($mongoData, $filter)
+    public function generateFilterData($mongoData, $filters)
     {
-        $data = collect($mongoData)->map(function ($item, $key) use ($filter) {
-            if ($key != 'variables') {
-                $filtered = collect($item)->reject(function ($value, $key) use ($filter) {
 
-                    $valid = validPhoneNumber($value->mobiles, $filter);
+        $data = collect($mongoData)->map(function ($item, $key) use ($filters) {
+            if ($key != 'variables') {
+                $filteredData = collect($item)->reject(function ($value, $key) use ($filters) {
+
+                    $valid = validPhoneNumber($value->mobiles, $filters);
                     if (!$valid)
                         return $value;
                 });
-                return $filtered;
+                return $filteredData;
             }
         });
-
         $data = json_decode($data);
-
         $data->variables = $mongoData->variables;
-        $data = collect($data)->filter();
-        return json_decode($data);
+        return $data;
     }
 
     public function createNewJob($channel_id, $input, $delayTime)

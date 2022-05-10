@@ -1,16 +1,13 @@
 <?php
 
 use App\Libs\EmailLib;
-use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
-use App\Models\CampaignLog;
 use App\Models\Condition;
 use App\Models\Filter;
 use App\Models\FlowAction;
 use App\Services\EmailService;
-use App\Services\RcsService;
 use App\Services\SmsService;
 use App\Services\VoiceService;
 use App\Services\WhatsappService;
@@ -161,24 +158,6 @@ function convertBody($md, $campaign)
     return $data;
 }
 
-function updateCampaignLogStatus(CampaignLog $campaignLog)
-{
-    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
-    if (empty($actionLogs)) {
-        printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
-        return;
-    }
-
-    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
-    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
-
-    if ($pendingCount == 0) {
-        $campaignLog->status = "Complete";
-        $campaignLog->save();
-        printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
-    }
-}
-
 function setLibrary($channel)
 {
     $email = 1;
@@ -266,7 +245,7 @@ function printLog($message, $log = 1, $data = null)
     }
 }
 
-function validPhoneNumber($mobile, $filter)
+function validPhoneNumber($mobile, $filterArr)
 {
     $path = Filter::where('name', 'countries')->pluck('source')->first();
     $countriesJson = Cache::get('countriesJson');
@@ -274,14 +253,12 @@ function validPhoneNumber($mobile, $filter)
         $countriesJson = json_decode(file_get_contents($path));
         Cache::put('countriesJson', $countriesJson, 86400);
     }
-    $code = collect($countriesJson)->pluck('International dialing')->toArray();
     for ($i = 4; $i > 0; $i--) {
         $mobileCode = substr($mobile, 0, $i);
-
-        if (in_array($mobileCode, $code)) {
-            $codeData = collect($countriesJson)->firstWhere('International dialing', $mobileCode);
-            $codeData = (array)$codeData;
-            return $codeData['Country code'] == $filter ? true : false;
+        $codeData = (array)collect($countriesJson)->firstWhere('International dialing', $mobileCode);
+        if (!empty($codeData)) {
+            $countryCode = $codeData['Country code'];
+            return  in_array($countryCode, $filterArr);
         }
     }
 }
