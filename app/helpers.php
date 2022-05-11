@@ -315,10 +315,10 @@ function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
             break;
     }
     // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-    if (empty($rabbitmq)) {
-        printLog("We are here to initiate rabbitmq lib.", 2);
-        $rabbitmq = new RabbitMQLib;
-    }
+    // if (empty($rabbitmq)) {
+    //     printLog("We are here to initiate rabbitmq lib.", 2);
+    //     $rabbitmq = new RabbitMQLib;
+    // }
     // $this->rabbitmq->enqueue($queue, $input);
     RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
 }
