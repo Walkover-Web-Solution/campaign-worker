@@ -2,25 +2,11 @@
 
 namespace App\Services;
 
-use App\Jobs\RabbitMQJob;
-use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
-use App\Libs\RabbitMQLib;
-use App\Libs\SmsLib;
-use App\Libs\VoiceLib;
-use App\Libs\WhatsAppLib;
 use App\Models\ActionLog;
 use App\Models\Campaign;
-use App\Models\CampaignLog;
 use App\Models\ChannelType;
-use App\Models\Company;
 use App\Models\FlowAction;
-use App\Models\Template;
-use Carbon\Carbon;
-use Exception;
-use Illuminate\Support\Facades\Log;
-use MongoDB\Model\BSONArray;
-use MongoDB\Model\BSONDocument;
 
 /**
  * Class ChannelService
@@ -122,7 +108,7 @@ class ChannelService
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            $this->createNewJob($channel_id, $input, $delayValue);
+            createNewJob($channel_id, $input, $delayValue, $this->rabbitmq);
         }
 
         return;
@@ -326,35 +312,5 @@ class ChannelService
         $service = setService($channelId);
 
         $service->storeReport($res, $actionLog, $collection);
-    }
-
-
-
-    public function createNewJob($channel_id, $input, $delayTime)
-    {
-        //selecting the queue name as per the flow channel id
-        switch ($channel_id) {
-            case 1:
-                $queue = 'run_email_campaigns';
-                break;
-            case 2:
-                $queue = 'run_sms_campaigns';
-                break;
-            case 3:
-                $queue = 'run_whastapp_campaigns';
-                break;
-            case 4:
-                $queue = 'run_voice_campaigns';
-                break;
-            case 5:
-                $queue = 'condition_queue';
-                break;
-        }
-        // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
-        // $this->rabbitmq->enqueue($queue, $input);
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime)); //dispatching the job
     }
 }

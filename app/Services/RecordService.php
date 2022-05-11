@@ -2,16 +2,12 @@
 
 namespace App\Services;
 
-use App\Jobs\RabbitMQJob;
 use App\Libs\MongoDBLib;
-use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
-use App\Models\Condition;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Class RecordService
@@ -87,39 +83,8 @@ class RecordService
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input, $delayValue);
+                createNewJob($flow->channel_id, $input, $delayValue, $this->rabbitmq);
             }
         });
-    }
-    public function createNewJob($channel_id, $input, $delayTime)
-    {
-        //selecting the queue name as per the flow channel id
-        switch ($channel_id) {
-            case 1:
-                $queue = 'run_email_campaigns';
-                break;
-            case 2:
-                $queue = 'run_sms_campaigns';
-                break;
-            case 3:
-                $queue = 'run_whastapp_campaigns';
-                break;
-            case 4:
-                $queue = 'run_voice_campaigns';
-                break;
-            case 5:
-                $queue = 'run_rcs_campaigns';
-                break;
-            case 6:
-                $queue = 'condition_queue';
-                break;
-        }
-        printLog("About to create job for " . $queue, 1);
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
-        // $this->rabbitmq->enqueue($queue, $input);
-        RabbitMQJob::dispatch($input)->delay(Carbon::now()->addSeconds($delayTime))->onQueue($queue); //dispatching the job
-        printLog("'================= Created Job in " . $queue . " =============", 1);
     }
 }
