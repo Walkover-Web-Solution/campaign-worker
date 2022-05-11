@@ -2,25 +2,11 @@
 
 namespace App\Services;
 
-use App\Jobs\RabbitMQJob;
-use App\Libs\EmailLib;
 use App\Libs\MongoDBLib;
-use App\Libs\RabbitMQLib;
-use App\Libs\SmsLib;
-use App\Libs\VoiceLib;
-use App\Libs\WhatsAppLib;
 use App\Models\ActionLog;
 use App\Models\Campaign;
-use App\Models\CampaignLog;
 use App\Models\ChannelType;
-use App\Models\Company;
 use App\Models\FlowAction;
-use App\Models\Template;
-use Carbon\Carbon;
-use Exception;
-use Illuminate\Support\Facades\Log;
-use MongoDB\Model\BSONArray;
-use MongoDB\Model\BSONDocument;
 
 /**
  * Class ChannelService
@@ -72,7 +58,7 @@ class ChannelService
         printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData);
+        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log);
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -110,7 +96,8 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+        $nextFlowAction= FlowAction::where('id',$new_action_log->flow_action_id)->first();
+        $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
         if (empty($delayTime)) {
             $delayValue = 0;
         } else {
@@ -122,14 +109,14 @@ class ChannelService
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            $this->createNewJob($channel_id, $input, $delayValue);
+            createNewJob($channel_id, $input, $delayValue, $this->rabbitmq);
         }
 
         return;
     }
 
 
-    public function getRequestBody($flow, $md)
+    public function getRequestBody($flow, $md, $action_log)
     {
         /**
          * extracting the all the variables from the mongo data
@@ -150,6 +137,7 @@ class ChannelService
 
         $data = [];
         $mongo_data = $md;
+        $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
                 $cc = [];
@@ -213,6 +201,10 @@ class ChannelService
                 break;
             case 3:
                 //
+                break;
+            case 5: //for rcs
+                $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
+                $obj->count = count($mongo_data['mobiles']);
                 break;
         }
         $obj->data = json_decode(collect($data));
@@ -326,35 +318,5 @@ class ChannelService
         $service = setService($channelId);
 
         $service->storeReport($res, $actionLog, $collection);
-    }
-
-
-
-    public function createNewJob($channel_id, $input, $delayTime)
-    {
-        //selecting the queue name as per the flow channel id
-        switch ($channel_id) {
-            case 1:
-                $queue = 'run_email_campaigns';
-                break;
-            case 2:
-                $queue = 'run_sms_campaigns';
-                break;
-            case 3:
-                $queue = 'run_whastapp_campaigns';
-                break;
-            case 4:
-                $queue = 'run_voice_campaigns';
-                break;
-            case 5:
-                $queue = 'condition_queue';
-                break;
-        }
-        // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
-        // $this->rabbitmq->enqueue($queue, $input);
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime)); //dispatching the job
     }
 }

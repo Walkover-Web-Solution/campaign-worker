@@ -1,6 +1,8 @@
 <?php
 
+use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
+use App\Libs\RabbitMQLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
@@ -14,6 +16,7 @@ use App\Services\RcsService;
 use App\Services\SmsService;
 use App\Services\VoiceService;
 use App\Services\WhatsappService;
+use Carbon\Carbon;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Cache;
@@ -122,33 +125,35 @@ function convertBody($md, $campaign)
     $obj->hasChannel->map(function ($channel) use ($item, $obj) {
         $service = setService($channel);
         switch ($channel) {
-            case 1:
-                $to = [];
-                $cc = [];
-                $bcc = [];
-                if (isset($item->to)) {
-                    $to = $service->createRequestBody($item->to);
-                    $to = collect($to)->whereNotNull('email');
-                }
-                if (isset($item->cc)) {
-                    $cc = $service->createRequestBody($item->cc);
-                    $cc = collect($cc)->whereNotNull('email');
-                }
-                if (isset($item->bcc)) {
-                    $bcc = $service->createRequestBody($item->bcc);
-                    $bcc = collect($bcc)->whereNotNull('email');
-                }
-                $obj->emails = [
-                    "to" => $to,
-                    "cc" => $cc,
-                    "bcc" => $bcc,
-                ];
+            case 1: {
+                    $to = [];
+                    $cc = [];
+                    $bcc = [];
+                    if (isset($item->to)) {
+                        $to = $service->createRequestBody($item->to);
+                        $to = collect($to)->whereNotNull('email');
+                    }
+                    if (isset($item->cc)) {
+                        $cc = $service->createRequestBody($item->cc);
+                        $cc = collect($cc)->whereNotNull('email');
+                    }
+                    if (isset($item->bcc)) {
+                        $bcc = $service->createRequestBody($item->bcc);
+                        $bcc = collect($bcc)->whereNotNull('email');
+                    }
+                    $obj->emails = [
+                        "to" => $to,
+                        "cc" => $cc,
+                        "bcc" => $bcc,
+                    ];
 
-                $obj->emailCount = count($to) + count($cc) + count($bcc);
+                    $obj->emailCount = count($to) + count($cc) + count($bcc);
+                }
                 break;
-            case 2:
-                $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
-                $obj->mobileCount = count($obj->mobiles);
+            default: {
+                    $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
+                    $obj->mobileCount = count($obj->mobiles);
+                }
                 break;
         }
     });
@@ -157,7 +162,6 @@ function convertBody($md, $campaign)
         "mobiles" => $obj->mobiles,
         "variables" => $variables
     ];
-
     return $data;
 }
 
@@ -195,8 +199,8 @@ function setLibrary($channel)
             return new WhatsAppLib();
         case $voice:
             return new VoiceLib();
-            // case $rcs:
-            //     return new RcsLib();
+        case $rcs:
+            return new RcsLib();
     }
 }
 function setService($channel)
@@ -215,8 +219,8 @@ function setService($channel)
             return new WhatsappService();
         case $voice:
             return new VoiceService();
-            // case $rcs:
-            //     return new RcsService();
+        case $rcs:
+            return new RcsService();
     }
 }
 
@@ -284,4 +288,36 @@ function validPhoneNumber($mobile, $filter)
             return $codeData['Country code'] == $filter ? true : false;
         }
     }
+}
+
+
+function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
+{
+    //selecting the queue name as per the flow channel id
+    switch ($channel_id) {
+        case 1:
+            $queue = 'run_email_campaigns';
+            break;
+        case 2:
+            $queue = 'run_sms_campaigns';
+            break;
+        case 3:
+            $queue = 'run_whastapp_campaigns';
+            break;
+        case 4:
+            $queue = 'run_voice_campaigns';
+            break;
+        case 5:
+            $queue = 'run_rcs_campaigns';
+            break;
+        case 6:
+            $queue = 'condition_queue';
+            break;
+    }
+    // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
+    if (empty($rabbitmq)) {
+        $rabbitmq = new RabbitMQLib;
+    }
+    // $this->rabbitmq->enqueue($queue, $input);
+    RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
 }
