@@ -245,7 +245,62 @@ function printLog($message, $log = 1, $data = null)
     }
 }
 
-function validPhoneNumber($mobile, $filterArr)
+function getFilteredData($obj)
+{
+    //obj have mongoData, moduleData, data(required filteredData)
+    $obj->keys = [];
+    $obj->grpFlowActionMap = [];
+    $obj->variables = $obj->mongoData->variables;
+    collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
+        if ($field != 'variables') {
+            collect($contacts)->map(function ($contact) use ($obj, $field) {
+                $countryCode = getCountryCode($contact->mobiles);
+                $key = 'op_' . $countryCode;
+                if (!empty($obj->moduleData->$key)) {
+                    $grpKey = $key . '_grp_id';
+                    if (!empty($obj->moduleData->$grpKey)) {
+                        $grpId = $obj->moduleData->$grpKey;
+                        array_push($obj->keys, $grpId);
+                        if (empty($obj->data->$grpId)) {
+                            $obj->data->$grpId = new \stdClass();
+                            $obj->data->$grpId->to = [];
+                            $obj->data->$grpId->cc = [];
+                            $obj->data->$grpId->bcc = [];
+                            $obj->data->$grpId->variables = $obj->variables;
+                            $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                        }
+                        array_push($obj->data->$grpId->$field, $contact);
+                    }
+                }
+            });
+        }
+    });
+    return $obj;
+}
+
+function getFilteredDatawithRemainingGroups($obj)
+{
+    $usedGroupIds = $obj->keys;
+    $totalGroupIds = collect($obj->moduleData->groupNames)->keys()->toArray();
+    $remGroupIds = array_diff($totalGroupIds, $usedGroupIds);
+    collect($remGroupIds)->map(function ($remKey) use ($obj) {
+        collect($obj->moduleData)->map(function ($opVal, $opKey) use ($remKey, $obj) {
+            if (\Str::endsWith($opKey, 'grp_id')) {
+                $keySplit = explode('_', $opKey);
+                $key = $keySplit[0] . '_' . $keySplit[1];
+                $obj->grpFlowActionMap[$remKey] = $obj->moduleData->$key;
+            }
+        });
+        $obj->data->$remKey = new \stdClass();
+        $obj->data->$remKey->to = [];
+        $obj->data->$remKey->cc = [];
+        $obj->data->$remKey->bcc = [];
+        $obj->data->$remKey->variables = $obj->variables;
+    });
+    return $obj;
+}
+
+function getCountryCode($mobile)
 {
     $path = Filter::where('name', 'countries')->pluck('source')->first();
     $countriesJson = Cache::get('countriesJson');
@@ -255,10 +310,12 @@ function validPhoneNumber($mobile, $filterArr)
     }
     for ($i = 4; $i > 0; $i--) {
         $mobileCode = substr($mobile, 0, $i);
+
         $codeData = (array)collect($countriesJson)->firstWhere('International dialing', $mobileCode);
         if (!empty($codeData)) {
             $countryCode = $codeData['Country code'];
-            return  in_array($countryCode, $filterArr);
+            return  $countryCode;
         }
     }
+    return 'others';
 }
