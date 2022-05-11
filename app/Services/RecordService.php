@@ -56,6 +56,7 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
+        printLog("Found mongo data.", 2);
         collect($md[0]->data->sendTo)->map(function ($item) use ($camplog, $flow, $camp) {
             $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
@@ -83,6 +84,7 @@ class RecordService
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
+                printLog("Now creating new job for next flow action.", 2);
                 createNewJob($flow->channel_id, $input, $delayValue, $this->rabbitmq);
             }
         });
