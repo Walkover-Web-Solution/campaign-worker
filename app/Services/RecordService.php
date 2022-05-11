@@ -108,10 +108,10 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
             case 5:
-                $queue = 'condition_queue';
+                $queue = 'run_rcs_campaigns';
                 break;
             case 6:
-                $queue = 'run_rcs_campaigns';
+                $queue = 'condition_queue';
                 break;
         }
         printLog("About to create job for " . $queue, 1);
