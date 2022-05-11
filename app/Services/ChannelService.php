@@ -58,7 +58,7 @@ class ChannelService
         printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData);
+        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log);
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -115,7 +115,7 @@ class ChannelService
     }
 
 
-    public function getRequestBody($flow, $md)
+    public function getRequestBody($flow, $md, $action_log)
     {
         /**
          * extracting the all the variables from the mongo data
@@ -136,6 +136,7 @@ class ChannelService
 
         $data = [];
         $mongo_data = $md;
+        $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
                 $cc = [];
@@ -199,6 +200,10 @@ class ChannelService
                 break;
             case 3:
                 //
+                break;
+            case 5: //for rcs
+                $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
+                $obj->count = count($mongo_data['mobiles']);
                 break;
         }
         $obj->data = json_decode(collect($data));
