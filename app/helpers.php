@@ -319,5 +319,5 @@ function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
         $rabbitmq = new RabbitMQLib;
     }
     // $this->rabbitmq->enqueue($queue, $input);
-    RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime)); //dispatching the job
+    RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
 }

@@ -96,7 +96,8 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+        $nextFlowAction= FlowAction::where('id',$new_action_log->flow_action_id)->first();
+        $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
         if (empty($delayTime)) {
             $delayValue = 0;
         } else {
