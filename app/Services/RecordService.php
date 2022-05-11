@@ -79,10 +79,15 @@ class RecordService
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
             $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+            if (empty($delayTime)) {
+                $delayValue = 0;
+            } else {
+                $delayValue = $delayTime->value;
+            }
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input, $delayTime->value);
+                $this->createNewJob($flow->channel_id, $input, $delayValue);
             }
         });
     }
@@ -103,10 +108,10 @@ class RecordService
                 $queue = 'run_voice_campaigns';
                 break;
             case 5:
-                $queue = 'condition_queue';
+                $queue = 'run_rcs_campaigns';
                 break;
             case 6:
-                $queue = 'run_rcs_campaigns';
+                $queue = 'condition_queue';
                 break;
         }
         printLog("About to create job for " . $queue, 1);
