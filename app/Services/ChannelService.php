@@ -7,6 +7,7 @@ use App\Models\ActionLog;
 use App\Models\Campaign;
 use App\Models\ChannelType;
 use App\Models\FlowAction;
+use Carbon\Carbon;
 
 /**
  * Class ChannelService
@@ -96,15 +97,17 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        $nextFlowAction= FlowAction::where('id',$new_action_log->flow_action_id)->first();
-        $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
-        if (empty($delayTime)) {
-            $delayValue = 0;
-        } else {
-            $delayValue = $delayTime->value;
-        }
         printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
+
+            $nextFlowAction = FlowAction::where('id', $new_action_log->flow_action_id)->first();
+            $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+            if (empty($delayTime)) {
+                $delayValue = 0;
+            } else {
+                $delayValue = $delayTime->value;
+            }
+
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
@@ -223,6 +226,9 @@ class ChannelService
             $val = $res->data->unique_id;
         } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
+        } else if ($flow->channel_id == 5 && !empty($res) && !$res->hasError) {
+            // for now generating random ref_id
+            $val = preg_replace('/\s+/', '_',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
         } else {
             $status = "Failed";
             printLog("Microservice api failed.");
