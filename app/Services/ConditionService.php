@@ -61,6 +61,7 @@ class ConditionService
 
                     // initialize body for remaining keys that has no contact in mongoData
                     $obj = getFilteredDatawithRemainingGroups($obj);
+                    dd($obj->data);
 
                     // create jobs for next actionLogs according to groups
                     collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log) {

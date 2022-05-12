@@ -285,17 +285,20 @@ function getFilteredDatawithRemainingGroups($obj)
     $remGroupIds = array_diff($totalGroupIds, $usedGroupIds);
     collect($remGroupIds)->map(function ($remKey) use ($obj) {
         collect($obj->moduleData)->map(function ($opVal, $opKey) use ($remKey, $obj) {
-            if (\Str::endsWith($opKey, 'grp_id')) {
+            if (\Str::endsWith($opKey, 'grp_id') && $opVal == $remKey) {
+                // initializing for the first time
+                if (empty($obj->data->$remKey)) {
+                    $obj->data->$remKey = new \stdClass();
+                    $obj->data->$remKey->to = [];
+                    $obj->data->$remKey->cc = [];
+                    $obj->data->$remKey->bcc = [];
+                    $obj->data->$remKey->variables = $obj->variables;
+                }
                 $keySplit = explode('_', $opKey);
                 $key = $keySplit[0] . '_' . $keySplit[1];
                 $obj->grpFlowActionMap[$remKey] = $obj->moduleData->$key;
             }
         });
-        $obj->data->$remKey = new \stdClass();
-        $obj->data->$remKey->to = [];
-        $obj->data->$remKey->cc = [];
-        $obj->data->$remKey->bcc = [];
-        $obj->data->$remKey->variables = $obj->variables;
     });
     return $obj;
 }
