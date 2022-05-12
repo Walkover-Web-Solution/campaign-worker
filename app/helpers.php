@@ -293,6 +293,7 @@ function validPhoneNumber($mobile, $filter)
 
 function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
 {
+    printLog("Inside creating new job.", 2);
     //selecting the queue name as per the flow channel id
     switch ($channel_id) {
         case 1:
@@ -320,5 +321,6 @@ function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
     //     $rabbitmq = new RabbitMQLib;
     // }
     // $this->rabbitmq->enqueue($queue, $input);
+    printLog("Here to dispatch job.", 2);
     RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
 }
