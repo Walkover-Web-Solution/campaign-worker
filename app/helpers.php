@@ -260,8 +260,8 @@ function getFilteredData($obj)
                     $grpKey = $key . '_grp_id';
                     if (!empty($obj->moduleData->$grpKey)) {
                         $grpId = $obj->moduleData->$grpKey;
-                        array_push($obj->keys, $grpId);
                         if (empty($obj->data->$grpId)) {
+                            array_push($obj->keys, $grpId);
                             $obj->data->$grpId = new \stdClass();
                             $obj->data->$grpId->to = [];
                             $obj->data->$grpId->cc = [];
