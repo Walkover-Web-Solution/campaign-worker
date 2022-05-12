@@ -16,7 +16,6 @@ use Exception;
 class RecordService
 {
     protected $mongo;
-    protected $rabbitmq;
     public function __construct()
     {
     }
@@ -85,7 +84,7 @@ class RecordService
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
                 printLog("Now creating new job for next flow action.", 2);
-                createNewJob($flow->channel_id, $input, $delayValue, $this->rabbitmq);
+                createNewJob($flow->channel_id, $input, $delayValue);
             }
         });
     }

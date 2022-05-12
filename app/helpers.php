@@ -291,7 +291,7 @@ function validPhoneNumber($mobile, $filter)
 }
 
 
-function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
+function createNewJob($channel_id, $input, $delayTime)
 {
     printLog("Inside creating new job.", 2);
     //selecting the queue name as per the flow channel id
@@ -322,5 +322,10 @@ function createNewJob($channel_id, $input, $delayTime, $rabbitmq)
     // }
     // $this->rabbitmq->enqueue($queue, $input);
     printLog("Here to dispatch job.", 2);
-    RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
+    if (env('APP_ENV') == 'local') {
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal'); //dispatching the job
+    } else {
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
+    }
+    printLog("Successfully created new job.", 2);
 }
