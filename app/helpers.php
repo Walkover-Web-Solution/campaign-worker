@@ -7,7 +7,6 @@ use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
-use App\Models\CampaignLog;
 use App\Models\Condition;
 use App\Models\Filter;
 use App\Models\FlowAction;
@@ -165,24 +164,6 @@ function convertBody($md, $campaign)
     return $data;
 }
 
-function updateCampaignLogStatus(CampaignLog $campaignLog)
-{
-    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
-    if (empty($actionLogs)) {
-        printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
-        return;
-    }
-
-    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
-    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
-
-    if ($pendingCount == 0) {
-        $campaignLog->status = "Complete";
-        $campaignLog->save();
-        printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
-    }
-}
-
 function setLibrary($channel)
 {
     $email = 1;
@@ -270,7 +251,67 @@ function printLog($message, $log = 1, $data = null)
     }
 }
 
-function validPhoneNumber($mobile, $filter)
+function getFilteredData($obj)
+{
+    //obj have mongoData, moduleData, data(required filteredData)
+    $obj->keys = [];
+    $obj->grpFlowActionMap = [];
+    $obj->variables = $obj->mongoData->variables;
+    collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
+        if ($field != 'variables') {
+            collect($contacts)->map(function ($contact) use ($obj, $field) {
+                $countryCode = getCountryCode($contact->mobiles);
+                $key = 'op_' . $countryCode;
+                if (!empty($obj->moduleData->$key)) {
+                    $grpKey = $key . '_grp_id';
+                    if (!empty($obj->moduleData->$grpKey)) {
+                        $grpId = $obj->moduleData->$grpKey;
+                        if (empty($obj->data->$grpId)) {
+                            array_push($obj->keys, $grpId);
+                            $obj->data->$grpId = new \stdClass();
+                            $obj->data->$grpId->to = [];
+                            $obj->data->$grpId->cc = [];
+                            $obj->data->$grpId->bcc = [];
+                            $obj->data->$grpId->variables = $obj->variables;
+                            $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                        }
+                        array_push($obj->data->$grpId->$field, $contact);
+                    }
+                }
+            });
+        }
+    });
+    return $obj;
+}
+
+function getFilteredDatawithRemainingGroups($obj)
+{
+    $usedGroupIds = $obj->keys;
+    $totalGroupIds = collect($obj->moduleData->groupNames)->keys()->toArray();
+    $remGroupIds = array_diff($totalGroupIds, $usedGroupIds);
+    collect($remGroupIds)->map(function ($remGroupId) use ($obj) {
+        collect($obj->moduleData)->map(function ($opVal, $opKey) use ($remGroupId, $obj) {
+            if (\Str::endsWith($opKey, 'grp_id') && $opVal == $remGroupId) {
+                $keySplit = explode('_', $opKey);
+                $key = $keySplit[0] . '_' . $keySplit[1];
+                if (!empty($obj->moduleData->$key)) {
+                    // initializing for the first time
+                    if (empty($obj->data->$remGroupId)) {
+                        $obj->data->$remGroupId = new \stdClass();
+                        $obj->data->$remGroupId->to = [];
+                        $obj->data->$remGroupId->cc = [];
+                        $obj->data->$remGroupId->bcc = [];
+                        $obj->data->$remGroupId->variables = $obj->variables;
+                    }
+                    $obj->grpFlowActionMap[$remGroupId] = $obj->moduleData->$key;
+                }
+            }
+        });
+    });
+    return $obj;
+}
+
+function getCountryCode($mobile)
 {
     $path = Filter::where('name', 'countries')->pluck('source')->first();
     $countriesJson = Cache::get('countriesJson');
@@ -278,16 +319,16 @@ function validPhoneNumber($mobile, $filter)
         $countriesJson = json_decode(file_get_contents($path));
         Cache::put('countriesJson', $countriesJson, 86400);
     }
-    $code = collect($countriesJson)->pluck('International dialing')->toArray();
     for ($i = 4; $i > 0; $i--) {
         $mobileCode = substr($mobile, 0, $i);
 
-        if (in_array($mobileCode, $code)) {
-            $codeData = collect($countriesJson)->firstWhere('International dialing', $mobileCode);
-            $codeData = (array)$codeData;
-            return $codeData['Country code'] == $filter ? true : false;
+        $codeData = (array)collect($countriesJson)->firstWhere('International dialing', $mobileCode);
+        if (!empty($codeData)) {
+            $countryCode = $codeData['Country code'];
+            return  $countryCode;
         }
     }
+    return 'others';
 }
 
 

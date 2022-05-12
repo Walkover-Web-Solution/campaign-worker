@@ -38,7 +38,7 @@ class FlowAction extends Model
      */
     public function actionLog()
     {
-        return $this->belongsTo(ActionLog::class, 'campaign_id');
+        return $this->belongsTo(ActionLog::class, 'flow_action_id');
     }
 
     /**

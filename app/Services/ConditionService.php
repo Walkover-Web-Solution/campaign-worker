@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Libs\MongoDBLib;
 use App\Models\ActionLog;
 use App\Models\Campaign;
+use App\Models\Filter;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
@@ -36,71 +37,68 @@ class ConditionService
         $data = $this->mongo->collection('flow_action_data')->find([
             'requestId' => $action_log->mongo_id
         ]);
+
+        $obj = new \stdClass();
+        // get mongoData
         $md = json_decode(json_encode($data));
+        $obj->mongoData = $md[0]->data;
 
-        collect($flow->module_data)->map(function ($nextFlowId, $filter) use ($md, $action_log, $campaign) {
+        $conditionId = collect($flow->configurations)->firstWhere('name', 'Condition')->value;
+        $countries = 1;
+        switch ($conditionId) {
+            case $countries: {
+                    $obj->data = new \stdClass();
+                    $obj->moduleData = $flow->module_data;
 
-            if (!empty($nextFlowId)) {
-                $filter = substr($filter, 3);
-                $newFlowAction = FlowAction::where('id', $nextFlowId)->first();
+                    // get filtered data according to groups and countries
+                    $obj = getFilteredData($obj);
 
-                /**
-                 * function that will make a filter according to the coountry
-                 */
-                $data = $this->generateFilterData($md[0]->data, $filter);
-                $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
-                $filterdata_mongoID = [
-                    'requestId' => $reqId,
-                    'data' => $data
-                ];
+                    // initialize body for remaining keys that has no contact in mongoData
+                    $obj = getFilteredDatawithRemainingGroups($obj);
 
-                $mongoId = $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
-                $actionLogData = [
-                    "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => 0,
-                    "response" => "",
-                    "status" => "pending",
-                    "report_status" => "pending",
-                    "ref_id" => "",
-                    "flow_action_id" => $newFlowAction->id,
-                    "mongo_id" => $reqId,
-                    'campaign_log_id' => $action_log->campaign_log_id
-                ];
-                printLog('Creating new action as per channel id ', 1);
-                $actionLog = $campaign->actionLogs()->create($actionLogData);
-                $delayTime = collect($newFlowAction->configurations)->firstWhere('name', 'delay');
-                if (empty($delayTime)) {
-                    $delayValue = 0;
-                } else {
-                    $delayValue = $delayTime->value;
+                    // create jobs for next actionLogs according to groups
+                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log) {
+                        $nextFlowAction = FlowAction::where('id', $obj->grpFlowActionMap[$grpId])->first();
+
+                        $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
+                        $filterdata_mongoID = [
+                            'requestId' => $reqId,
+                            'data' => $data
+                        ];
+                        $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
+
+                        // create actionLog for nextFlowAction
+                        $actionLogData = [
+                            "campaign_id" => $action_log->campaign_id,
+                            "no_of_records" => 0,
+                            "response" => "",
+                            "status" => "pending",
+                            "report_status" => "pending",
+                            "flow_action_id" => $nextFlowAction->id,
+                            "ref_id" => "",
+                            "mongo_id" => $reqId,
+                            'campaign_log_id' => $action_log->campaign_log_id
+                        ];
+                        printLog('Creating new action as per channel id ', 1);
+                        $actionLog = $nextFlowAction->actionLog()->create($actionLogData);
+
+                        // adding delay time with job
+                        $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+                        if (!empty($actionLog)) {
+                            $input = new \stdClass();
+                            $input->action_log_id =  $actionLog->id;
+                            createNewJob($nextFlowAction->channel_id, $input, $delayTime->value);
+                        }
+                    });
+
+                    $action_log->status = "Consumed";
+                    $action_log->save();
                 }
-                if (!empty($actionLog)) {
-                    $input = new \stdClass();
-                    $input->action_log_id =  $actionLog->id;
-                    createNewJob($newFlowAction->channel_id, $input, $delayValue, $this->rabbitmq);
+                break;
+            default: {
+                    //
                 }
-            }
-        });
-    }
-
-    public function generateFilterData($mongoData, $filter)
-    {
-        $data = collect($mongoData)->map(function ($item, $key) use ($filter) {
-            if ($key != 'variables') {
-                $filtered = collect($item)->reject(function ($value, $key) use ($filter) {
-
-                    $valid = validPhoneNumber($value->mobiles, $filter);
-                    if (!$valid)
-                        return $value;
-                });
-                return $filtered;
-            }
-        });
-
-        $data = json_decode($data);
-
-        $data->variables = $mongoData->variables;
-        $data = collect($data)->filter();
-        return json_decode($data);
+                break;
+        }
     }
 }
