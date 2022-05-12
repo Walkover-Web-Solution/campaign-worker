@@ -7,6 +7,7 @@ use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\CampaignLog;
 use App\Models\Condition;
 use App\Models\Filter;
 use App\Models\FlowAction;
@@ -163,6 +164,25 @@ function convertBody($md, $campaign)
     ];
     return $data;
 }
+
+function updateCampaignLogStatus(CampaignLog $campaignLog)
+{
+    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
+    if (empty($actionLogs)) {
+        printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
+        return;
+    }
+
+    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
+    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
+
+    if ($pendingCount == 0) {
+        $campaignLog->status = "Complete";
+        $campaignLog->save();
+        printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
+    }
+}
+
 
 function setLibrary($channel)
 {
