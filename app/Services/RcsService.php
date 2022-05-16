@@ -2,8 +2,7 @@
 
 namespace App\Services;
 
-use App\Libs\MongoDBLib;
-use App\Models\CampaignLog;
+use App\Models\ActionLog;
 use App\Models\FlowAction;
 
 /**
@@ -36,7 +35,6 @@ class RcsService
 
     public function getRequestBody(FlowAction $flowAction, $action_log, $mongo_data, $variables, $function)
     {
-        $campLog = CampaignLog::where('id', $action_log->campaign_log_id)->first();
         // make template funciton and call using switch with $function
         $template = $flowAction->configurations[0]->template;
         $data = [
@@ -46,7 +44,7 @@ class RcsService
             "name" => $template->name,
             "namespace" => $template->template_id,
             "variables" => $variables,
-            "campaign_id " => $campLog->mongo_uid
+            "campaign_id " => $action_log->mongo_id
         ];
         return $data;
     }
