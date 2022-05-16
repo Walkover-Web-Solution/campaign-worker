@@ -383,10 +383,13 @@ function createNewJob($channel_id, $input, $delayTime)
     // }
     // $this->rabbitmq->enqueue($queue, $input);
     printLog("Here to dispatch job.", 2);
+
     if (env('APP_ENV') == 'local') {
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal'); //dispatching the job
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
+        dispatch($job); //dispatching the job
     } else {
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime)); //dispatching the job
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        dispatch($job);
     }
     printLog("Successfully created new job.", 2);
 }
