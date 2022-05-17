@@ -25,7 +25,8 @@ class Campaign extends Model
         'meta' => 'object',
         'configurations' => 'object',
         'style' => 'json',
-        'module_data' => 'json'
+        'module_data' => 'json',
+        'is_active' => 'boolean'
     );
 
 
@@ -88,5 +89,4 @@ class Campaign extends Model
     {
         return $this->hasMany(CampaignReport::class, 'campaign_id');
     }
-
 }

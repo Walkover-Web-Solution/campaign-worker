@@ -30,7 +30,14 @@ class ChannelService
          * generating the token
          */
         $campaignLog = $action_log->campaignLog;
-        $campaign = Campaign::find($action_log->campaign_id);
+        $campaign = $action_log->campaign;
+
+        // Create job for paused CampaignLog in paused queue
+        if ($campaignLog->is_paused) {
+            createPauseJob($actionLogId);
+            return;
+        }
+
         $input['company'] = $campaign->company;
         $input['user'] = $campaign->user;
         $input['ip'] = $campaignLog->ip;
