@@ -391,17 +391,3 @@ function createNewJob($channel_id, $input, $delayTime)
     }
     printLog("Successfully created new job.", 2);
 }
-
-function createPauseJob($actionLogId)
-{
-    $input = new \stdClass();
-    $input->action_log_id =  $actionLogId;
-
-    //selecting the queue name as per the flow channel id
-    $queue = 'paused_campaign_queue';
-    if (env('APP_ENV') == 'local') {
-        RabbitMQJob::dispatch($input)->onQueue($queue)->onConnection('rabbitmqlocal'); //dispatching the job
-    } else {
-        RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
-    }
-}

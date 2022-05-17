@@ -32,9 +32,8 @@ class ChannelService
         $campaignLog = $action_log->campaignLog;
         $campaign = $action_log->campaign;
 
-        // Create job for paused CampaignLog in paused queue
+        // Return to dequeue this job if Campaign is paused
         if ($campaignLog->is_paused) {
-            createPauseJob($actionLogId);
             return;
         }
 

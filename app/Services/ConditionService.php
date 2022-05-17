@@ -24,9 +24,8 @@ class ConditionService
         $campaignLog = $action_log->campaignLog;
         printLog("Till now we found Campaign. And now about to find flow action.", 2);
 
-        // Create job for paused CampaignLog in paused queue
+        // Return to dequeue this job if Campaign is paused
         if ($campaignLog->is_paused) {
-            createPauseJob($actionLogId);
             return;
         }
 
