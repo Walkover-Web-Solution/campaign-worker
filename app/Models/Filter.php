@@ -12,6 +12,10 @@ class Filter extends Model
         'name',
         'source'
     ];
+    
+    protected $casts = array(
+        'source' => 'json',
+    );
 
     protected $hidden = array(
         'created_at',

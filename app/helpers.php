@@ -150,6 +150,8 @@ function convertBody($md, $campaign)
                     $obj->emailCount = count($to) + count($cc) + count($bcc);
                 }
                 break;
+            case 6:
+                break;
             default: {
                     $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
                     $obj->mobileCount = count($obj->mobiles);
@@ -333,12 +335,7 @@ function getFilteredDatawithRemainingGroups($obj)
 
 function getCountryCode($mobile)
 {
-    $path = Filter::where('name', 'countries')->pluck('source')->first();
-    $countriesJson = Cache::get('countriesJson');
-    if (empty($countriesJson)) {
-        $countriesJson = json_decode(file_get_contents($path));
-        Cache::put('countriesJson', $countriesJson, 86400);
-    }
+    $countriesJson = Filter::where('name', 'countries')->pluck('source')->first();
     for ($i = 4; $i > 0; $i--) {
         $mobileCode = substr($mobile, 0, $i);
 

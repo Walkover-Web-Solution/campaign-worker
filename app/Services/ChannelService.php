@@ -111,8 +111,7 @@ class ChannelService
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
-            $channel_id = FlowAction::where('id', $new_action_log->flow_action_id)->pluck('channel_id')->first();
-            createNewJob($channel_id, $input, $delayValue, $this->rabbitmq);
+            createNewJob($nextFlowAction->channel_id, $input, $delayValue, $this->rabbitmq);
         }
 
         return;
