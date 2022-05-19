@@ -190,8 +190,15 @@ class ChannelService
                 break;
             case 2: //For SMS
                 $obj->mobilesArr = [];
+
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables) {
-                    $item = array_merge($item, $variables);
+                    if (empty($item['variables'])) {
+                        $variableData = $variables;
+                    } else {
+                        $variableData = array_unique(array_merge($variables, (array)$item['variables']));
+                    }
+                    $item = array_merge($item, $variableData);
+                    unset($item['variables']);
                     array_push($obj->mobilesArr, $item);
                 });
 
