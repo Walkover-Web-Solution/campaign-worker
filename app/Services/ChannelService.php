@@ -117,7 +117,7 @@ class ChannelService
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
-            createNewJob($nextFlowAction->channel_id, $input, $delayValue, $this->rabbitmq);
+            createNewJob($nextFlowAction->channel_id, $input, $delayValue);
         }
 
         return;
