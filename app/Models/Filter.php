@@ -10,7 +10,11 @@ class Filter extends Model
     use HasFactory;
     protected $fillable = [
         'name',
-        'source'
+        'field',
+        'short_name',
+        'operation',
+        'value',
+        'query'
     ];
 
     protected $hidden = array(

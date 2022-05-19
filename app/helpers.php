@@ -335,19 +335,14 @@ function getFilteredDatawithRemainingGroups($obj)
 
 function getCountryCode($mobile)
 {
-    $path = Filter::where('name', 'countries')->pluck('source')->first();
-    $countriesJson = Cache::get('countriesJson');
-    if (empty($countriesJson)) {
-        $countriesJson = json_decode(file_get_contents($path));
-        Cache::put('countriesJson', $countriesJson, 86400);
-    }
+    $condition = Condition::where('name', 'Countries')->with('filters:short_name,value')->first()->toArray();
     for ($i = 4; $i > 0; $i--) {
         $mobileCode = substr($mobile, 0, $i);
 
-        $codeData = (array)collect($countriesJson)->firstWhere('International dialing', $mobileCode);
+        $codeData = collect($condition['filters'])->firstWhere('value', $mobileCode);
         if (!empty($codeData)) {
-            $countryCode = $codeData['Country code'];
-            return  $countryCode;
+            $countryCode = $codeData['short_name'];
+            return $countryCode;
         }
     }
     return 'others';
