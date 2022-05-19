@@ -20,8 +20,15 @@ class ConditionService
     {
         printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
-        $campaign = Campaign::find($action_log->campaign_id);
+        $campaign = $action_log->campaign;
+        $campaignLog = $action_log->campaignLog;
         printLog("Till now we found Campaign. And now about to find flow action.", 2);
+
+        // Return to dequeue this job if Campaign is paused
+        if ($campaignLog->is_paused) {
+            return;
+        }
+
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
         if (empty($flow)) {
             printLog("No flow actions found.", 5);

@@ -150,6 +150,8 @@ function convertBody($md, $campaign)
                     $obj->emailCount = count($to) + count($cc) + count($bcc);
                 }
                 break;
+            case 6: // for condition flowAciton
+                break;
             default: {
                     $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
                     $obj->mobileCount = count($obj->mobiles);
@@ -351,31 +353,30 @@ function getCountryCode($mobile)
     return 'others';
 }
 
+function getQueue($channel_id)
+{
+    switch ($channel_id) {
+        case 1:
+            return 'run_email_campaigns';
+        case 2:
+            return 'run_sms_campaigns';
+        case 3:
+            return 'run_whastapp_campaigns';
+        case 4:
+            return 'run_voice_campaigns';
+        case 5:
+            return 'run_rcs_campaigns';
+        case 6:
+            return 'condition_queue';
+    }
+}
 
 function createNewJob($channel_id, $input, $delayTime)
 {
     printLog("Inside creating new job.", 2);
     //selecting the queue name as per the flow channel id
-    switch ($channel_id) {
-        case 1:
-            $queue = 'run_email_campaigns';
-            break;
-        case 2:
-            $queue = 'run_sms_campaigns';
-            break;
-        case 3:
-            $queue = 'run_whastapp_campaigns';
-            break;
-        case 4:
-            $queue = 'run_voice_campaigns';
-            break;
-        case 5:
-            $queue = 'run_rcs_campaigns';
-            break;
-        case 6:
-            $queue = 'condition_queue';
-            break;
-    }
+    $queue = getQueue($channel_id);
+
     // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
     // if (empty($rabbitmq)) {
     //     printLog("We are here to initiate rabbitmq lib.", 2);
