@@ -382,6 +382,7 @@ function createNewJob($channel_id, $input, $delayTime)
     if (env('APP_ENV') == 'local') {
         RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal'); //dispatching the job
     } else {
+        printLog("Inside else condition.");
         RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection("rabbitmq"); //dispatching the job
     }
     printLog("Successfully created new job.", 2);

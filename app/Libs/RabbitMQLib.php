@@ -3,6 +3,7 @@
 namespace App\Libs;
 
 use App\Jobs\RabbitMQJob;
+use PhpAmqpLib\Connection\AMQPLazySSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
@@ -23,7 +24,7 @@ class RabbitMQLib
 			$this->connection = new AMQPStreamConnection(config('services.rabbitmq.host'), config('services.rabbitmq.port'), config('services.rabbitmq.username'), config('services.rabbitmq.password'));
 		} else {
 			$timeout = 24 * 60 * 60;
-			$this->connection = new AMQPSSLConnection(
+			$this->connection = new AMQPLazySSLConnection(
 				config('services.rabbitmq.host'),
 				config('services.rabbitmq.port'),
 				config('services.rabbitmq.username'),
