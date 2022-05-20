@@ -24,7 +24,7 @@ class SmsService
         collect($data)->map(function ($item) use ($obj) {
 
             $mob = collect($item)->map(function ($value) {
-                return collect($value)->only('mobiles')->toArray();
+                return collect($value)->only('mobiles', 'variables')->toArray();
             })->toArray();
 
             $obj->arr = array_merge($obj->arr, $mob);
@@ -83,7 +83,7 @@ class SmsService
                 "reportData" => $res
             ];
             //inserting data into mongo
-            if(empty($this->mongo)){
+            if (empty($this->mongo)) {
                 $this->mongo = new MongoDBLib;
             }
             $this->mongo->collection($collection)->insertOne($reportData);
