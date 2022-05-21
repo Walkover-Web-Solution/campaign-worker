@@ -62,7 +62,7 @@ class ChannelService
 
         printLog("converting the contact body data to required context.", 2);
         $convertedData = convertBody($md, $campaign);
-        printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
+        // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
         $reqBody = $this->getRequestBody($flow, $convertedData, $action_log);
@@ -88,9 +88,9 @@ class ChannelService
             $res->hasError = true;
             $res->message = "No Data Found";
         } else {
-            if ($flow['channel_id'] == 2) {
-                printLog("DATA HERE", 1, (array)$data);
-            }
+            // if ($flow['channel_id'] == 2) {
+            //     // printLog("DATA HERE", 1, (array)$data);
+            // }
             $res = $lib->send($reqBody->data);
             //adding duplicate count to response
             if (!empty($res)) {
