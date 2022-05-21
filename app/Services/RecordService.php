@@ -64,7 +64,7 @@ class RecordService
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
             $actionLogData = [
-                "no_of_records" => 0,
+                "no_of_records" => $camplog->no_of_contacts,
                 "status" => "pending",
                 "report_status" => "pending",
                 "ref_id" => "",

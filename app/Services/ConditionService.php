@@ -22,6 +22,7 @@ class ConditionService
         $action_log = ActionLog::where('id', $actionLogId)->first();
         $campaign = $action_log->campaign;
         $campaignLog = $action_log->campaignLog;
+
         printLog("Till now we found Campaign. And now about to find flow action.", 2);
 
         // Return to dequeue this job if Campaign is paused
@@ -77,7 +78,7 @@ class ConditionService
                         // create actionLog for nextFlowAction
                         $actionLogData = [
                             "campaign_id" => $action_log->campaign_id,
-                            "no_of_records" => 0,
+                            "no_of_records" => $action_log->no_of_records,
                             "response" => "",
                             "status" => "pending",
                             "report_status" => "pending",
@@ -98,6 +99,12 @@ class ConditionService
                         }
                     });
 
+                    $action_log->response = [
+                        "data" => "",
+                        "errors" => [],
+                        "status" => "Consumed",
+                        "hasError" => false
+                    ];
                     $action_log->status = "Consumed";
                     $action_log->save();
                 }

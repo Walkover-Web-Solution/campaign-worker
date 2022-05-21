@@ -83,7 +83,7 @@ class SmsService
                 "reportData" => $res
             ];
             //inserting data into mongo
-            if(empty($this->mongo)){
+            if (empty($this->mongo)) {
                 $this->mongo = new MongoDBLib;
             }
             $this->mongo->collection($collection)->insertOne($reportData);
