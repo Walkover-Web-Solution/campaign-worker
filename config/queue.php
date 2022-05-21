@@ -127,9 +127,6 @@ return [
 
             'options' => [
 
-                'heartbeat' => 10,
-                'connection_timeout' => 86400,
-                'read_write_timeout' => 86400,
                 'ssl_options' => [
                     'cafile' => env('RABBITMQ_SSL_CAFILE', null),
                     'local_cert' => env('RABBITMQ_SSL_LOCALCERT', null),
