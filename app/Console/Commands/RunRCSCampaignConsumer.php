@@ -51,10 +51,10 @@ class RunRCSCampaignConsumer extends Command
             printLog("======== Found job in sms queue ========", 2);
             $message = json_decode($msg->getBody(), true);
             printLog("Decoding data from job ", 1, (array)$message);
-            // $message = json_decode($msg->getBody(), true);
-            // $obj = $message['data']['command'];
-            // $action_log_id = unserialize($obj)->data->action_log_id;
-            $action_log_id=$message['action_log_id'];
+            $message = json_decode($msg->getBody(), true);
+            $obj = $message['data']['command'];
+            $action_log_id = unserialize($obj)->data->action_log_id;
+            // $action_log_id=$message['action_log_id'];
             $channelService = new ChannelService();
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {

@@ -372,22 +372,16 @@ function createNewJob($channel_id, $input, $delayTime)
     //selecting the queue name as per the flow channel id
     $queue = getQueue($channel_id);
       // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-      if (empty($rabbitmq)) {
-        $rabbitmq = new RabbitMQLib;
-    }
-    $rabbitmq->enqueue($queue, $input);
-    // printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-    // if (empty($rabbitmq)) {
-    //     printLog("We are here to initiate rabbitmq lib.", 2);
+    //   if (empty($rabbitmq)) {
     //     $rabbitmq = new RabbitMQLib;
     // }
-    // $this->rabbitmq->enqueue($queue, $input);
-    // printLog("Here to dispatch job.", 2);
-    // if (env('APP_ENV') == 'local') {
-    //     RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal'); //dispatching the job
-    // } else {
-    //     printLog("Inside else condition.");
-    //     RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection("rabbitmq"); //dispatching the job
-    // }
+    // $rabbitmq->enqueue($queue, $input);
+    printLog("Here to dispatch job.", 2);
+    if (env('APP_ENV') == 'local') {
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal'); //dispatching the job
+    } else {
+        printLog("Inside else condition.");
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection("rabbitmq"); //dispatching the job
+    }
     printLog("Successfully created new job.", 2);
 }

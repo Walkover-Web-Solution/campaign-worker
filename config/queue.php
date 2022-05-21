@@ -87,6 +87,9 @@ return [
             ],
 
             'options' => [
+                'heartbeat' => 10,
+                'connection_timeout' => 86400,
+                'read_write_timeout' => 86400,
                 'ssl_options' => [
                     'cafile' => env('RABBITMQ_SSL_CAFILE', null),
                     'local_cert' => env('RABBITMQ_SSL_LOCALCERT', null),
@@ -123,12 +126,17 @@ return [
             ],
 
             'options' => [
+
+                'heartbeat' => 10,
+                'connection_timeout' => 86400,
+                'read_write_timeout' => 86400,
                 'ssl_options' => [
                     'cafile' => env('RABBITMQ_SSL_CAFILE', null),
                     'local_cert' => env('RABBITMQ_SSL_LOCALCERT', null),
                     'local_key' => env('RABBITMQ_SSL_LOCALKEY', null),
                     'verify_peer' => env('RABBITMQ_SSL_VERIFY_PEER', true),
                     'passphrase' => env('RABBITMQ_SSL_PASSPHRASE', null),
+                    'keepalive' => true,
                 ],
                 'queue' => [
                     'job' => VladimirYuldashev\LaravelQueueRabbitMQ\Queue\Jobs\RabbitMQJob::class,
