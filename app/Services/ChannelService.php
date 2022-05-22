@@ -221,7 +221,7 @@ class ChannelService
                     $rcsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
                     $data = [
                         'customer_number' => $item['customer_number'],
-                        'variables' => $rcsVariables
+                        'variables' => array_values($rcsVariables)
                     ];
                     array_push($obj->customer_number_variables, $data);
                 });
