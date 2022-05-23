@@ -43,9 +43,7 @@ class RunSmsCampaignConsumer extends Command
      */
     public function handle()
     {
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('run_sms_campaigns', array($this, 'decodedData'));
     }
 
@@ -62,18 +60,16 @@ class RunSmsCampaignConsumer extends Command
             $channelService = new ChannelService();
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {
-            if (empty($this->rabbitmq)) {
-                $this->rabbitmq = new RabbitMQLib;
-            }
             $logData = [
                 "actionLog" => "",
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
             logTest("failed job sms", $logData);
-            printLog("Found exception in run sms ", 1,  $logData);
+            printLog("Found exception in run sms ", 5,  $logData);
 
-            $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
+            $this->rabbitmq = RabbitMQLib::getInstance();
+            $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $message);
         }
         $msg->ack();
     }

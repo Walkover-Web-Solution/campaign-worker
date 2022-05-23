@@ -18,6 +18,7 @@ class Kernel extends ConsoleKernel
         // $schedule->command('check:report')->twiceDaily(7, 19);
         // $schedule->command('inspire')->hourly();
         $schedule->command('updateStatus:campaignLog')->everySixHours();
+        $schedule->command('onekfailed:consume')->everyFifteenMinutes();
     }
 
     /**
