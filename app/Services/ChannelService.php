@@ -285,7 +285,7 @@ class ChannelService
                 printLog("Found next flow action.");
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => 0,
+                    "no_of_records" => $action_log->no_of_records,
                     "response" => "",
                     "status" => "pending",
                     "report_status" => "pending",
