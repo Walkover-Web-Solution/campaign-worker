@@ -197,7 +197,7 @@ class ChannelService
                 $obj->mobilesArr = [];
 
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables, $temp) {
-                    $smsVariables = getChannelVariables($temp->variables, empty((array)$item['variables']) ? [] : (array)$item['variables'], $variables);
+                    $smsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
                     $item = array_merge($item, $smsVariables);
                     unset($item['variables']);
                     array_push($obj->mobilesArr, $item);
@@ -218,7 +218,7 @@ class ChannelService
                 $obj->customer_number_variables = [];
                 collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $temp) {
                     // get variables for this contact
-                    $rcsVariables = getChannelVariables($temp->variables, empty((array)$item['variables']) ? [] : (array)$item['variables'], $variables);
+                    $rcsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
                     $data = [
                         'customer_number' => $item['customer_number'],
                         'variables' => array_values($rcsVariables)
