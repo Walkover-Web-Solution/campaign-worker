@@ -196,13 +196,9 @@ class ChannelService
             case 2: //For SMS
                 $obj->mobilesArr = [];
 
-                $mongo_data['mobiles']->map(function ($item) use ($obj, $variables) {
-                    if (empty($item['variables'])) {
-                        $variableData = $variables;
-                    } else {
-                        $variableData = array_unique(array_merge($variables, (array)$item['variables']));
-                    }
-                    $item = array_merge($item, $variableData);
+                $mongo_data['mobiles']->map(function ($item) use ($obj, $variables, $temp) {
+                    $smsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
+                    $item = array_merge($item, $smsVariables);
                     unset($item['variables']);
                     array_push($obj->mobilesArr, $item);
                 });
@@ -219,6 +215,17 @@ class ChannelService
                 break;
             case 5: //for rcs
                 $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
+                $obj->customer_number_variables = [];
+                collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $temp) {
+                    // get variables for this contact
+                    $rcsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
+                    $data = [
+                        'customer_number' => $item['customer_number'],
+                        'variables' => array_values($rcsVariables)
+                    ];
+                    array_push($obj->customer_number_variables, $data);
+                });
+                $data['customer_number_variables'] = $obj->customer_number_variables;
                 $obj->count = count($mongo_data['mobiles']);
                 break;
         }
@@ -278,7 +285,7 @@ class ChannelService
                 printLog("Found next flow action.");
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => 0,
+                    "no_of_records" => $action_log->no_of_records,
                     "response" => "",
                     "status" => "pending",
                     "report_status" => "pending",

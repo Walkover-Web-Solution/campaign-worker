@@ -282,22 +282,24 @@ function getFilteredData($obj)
     collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
         if ($field != 'variables') {
             collect($contacts)->map(function ($contact) use ($obj, $field) {
-                $countryCode = getCountryCode($contact->mobiles);
-                $key = 'op_' . $countryCode;
-                if (!empty($obj->moduleData->$key)) {
-                    $grpKey = $key . '_grp_id';
-                    if (!empty($obj->moduleData->$grpKey)) {
-                        $grpId = $obj->moduleData->$grpKey;
-                        if (empty($obj->data->$grpId)) {
-                            array_push($obj->keys, $grpId);
-                            $obj->data->$grpId = new \stdClass();
-                            $obj->data->$grpId->to = [];
-                            $obj->data->$grpId->cc = [];
-                            $obj->data->$grpId->bcc = [];
-                            $obj->data->$grpId->variables = $obj->variables;
-                            $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                if (!empty($contact->mobiles)) {
+                    $countryCode = getCountryCode($contact->mobiles);
+                    $key = 'op_' . $countryCode;
+                    if (!empty($obj->moduleData->$key)) {
+                        $grpKey = $key . '_grp_id';
+                        if (!empty($obj->moduleData->$grpKey)) {
+                            $grpId = $obj->moduleData->$grpKey;
+                            if (empty($obj->data->$grpId)) {
+                                array_push($obj->keys, $grpId);
+                                $obj->data->$grpId = new \stdClass();
+                                $obj->data->$grpId->to = [];
+                                $obj->data->$grpId->cc = [];
+                                $obj->data->$grpId->bcc = [];
+                                $obj->data->$grpId->variables = $obj->variables;
+                                $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                            }
+                            array_push($obj->data->$grpId->$field, $contact);
                         }
-                        array_push($obj->data->$grpId->$field, $contact);
                     }
                 }
             });
@@ -394,4 +396,24 @@ function createNewJob($channel_id, $input, $delayTime)
         dispatch($job);
     }
     printLog("Successfully created new job.", 2);
+}
+
+function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
+{
+    if (empty($contactVariables)) {
+        return $commonVariables;
+    }
+    $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
+    $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
+
+    $obj = new \stdClass();
+    $obj->variables = [];
+    collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+        if (!empty($contactVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+        } else if (!empty($commonVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        }
+    });
+    return $obj->variables;
 }

@@ -37,8 +37,14 @@ class RcsService
     {
         // make template funciton and call using switch with $function
         $template = $flowAction->configurations[0]->template;
+        $customer_variables = $mongo_data['mobiles']->map(function ($item) {
+            return [
+                "customer_number" => $item['mobiles'],
+                "variables" => empty($item['variables']) ? [] : $item['variables']
+            ];
+        })->toArray();
         $data = [
-            "customer_numbers" => $mongo_data['mobiles']->pluck('mobiles')->toArray(),
+            "customer_number_variables" => $customer_variables,
             "project_id" => $template->project_id,
             "function_name" => $function,
             "name" => $template->name,
@@ -46,6 +52,7 @@ class RcsService
             "variables" => $variables,
             "campaign_id " => $action_log->mongo_id
         ];
+
         return $data;
     }
 }
