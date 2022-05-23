@@ -375,17 +375,17 @@ function createNewJob($channel_id, $input, $delayTime)
     $queue = getQueue($channel_id);
     //   printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
     printLog("Here to dispatch job.", 2);
-    if (empty($rabbitmq)) {
-        $rabbitmq = new RabbitMQLib;
-    }
-    $rabbitmq->enqueue($queue, $input);
-    // if (env('APP_ENV') == 'local') {
-    //     $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
-    //     dispatch($job); //dispatching the job
-    // } else {
-    //     $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
-    //     dispatch($job);
+    // if (empty($rabbitmq)) {
+    //     $rabbitmq = new RabbitMQLib;
     // }
+    // $rabbitmq->enqueue($queue, $input);
+    if (env('APP_ENV') == 'local') {
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
+        dispatch($job); //dispatching the job
+    } else {
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        dispatch($job);
+    }
     printLog("Successfully created new job.", 2);
 }
 
