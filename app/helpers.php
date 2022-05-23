@@ -387,3 +387,23 @@ function createNewJob($channel_id, $input, $delayTime)
     // }
     printLog("Successfully created new job.", 2);
 }
+
+function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
+{
+    if (empty($contactVariables)) {
+        return $commonVariables;
+    }
+    $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
+    $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
+
+    $obj = new \stdClass();
+    $obj->variables = [];
+    collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+        if (!empty($contactVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+        } else if (!empty($commonVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        }
+    });
+    return $obj->variables;
+}
