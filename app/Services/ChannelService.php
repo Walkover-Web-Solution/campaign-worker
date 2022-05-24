@@ -100,24 +100,28 @@ class ChannelService
          */
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
-        $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
-        printLog("Job Consumed");
-        // printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
-        // if (!empty($new_action_log)) {
+        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
+        // in case of rcs for webhook
+        if ($flow->channel_id == 5) {
+            printLog("Job Consumed");
+            return;
+        }
+        printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
+        if (!empty($new_action_log)) {
 
-        //     $nextFlowAction = FlowAction::where('id', $new_action_log->flow_action_id)->first();
-        //     $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
-        //     if (empty($delayTime)) {
-        //         $delayValue = 0;
-        //     } else {
-        //         $delayValue = $delayTime->value;
-        //     }
+            $nextFlowAction = FlowAction::where('id', $new_action_log->flow_action_id)->first();
+            $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+            if (empty($delayTime)) {
+                $delayValue = 0;
+            } else {
+                $delayValue = $delayTime->value;
+            }
 
-        //     printLog("Now creating new job for action log.", 1);
-        //     $input = new \stdClass();
-        //     $input->action_log_id =  $new_action_log->id;
-        //     createNewJob($nextFlowAction->channel_id, $input, $delayValue);
-        // }
+            printLog("Now creating new job for action log.", 1);
+            $input = new \stdClass();
+            $input->action_log_id =  $new_action_log->id;
+            createNewJob($nextFlowAction->channel_id, $input, $delayValue);
+        }
 
         return;
     }
@@ -252,47 +256,49 @@ class ChannelService
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
+        // in case of rcs for webhook
+        if ($flow->channel_id == 5)
+            return;
+
+        printLog("We are here to create new action log as per module data", 1);
+
+        $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
+        $campaign = Campaign::find($action_log->campaign_id);
+
+        $next_flow_id = null;
+        if ($status == 'Success')
+            $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
+        else
+            $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
+
+        printLog('Get status from microservice ' . $status, 1);
+        printLog("Enents are ", 1, $events);
+        if (in_array($status, $events) && !empty($next_flow_id)) {
+            printLog('Next flow id is ' . $next_flow_id, 1);
+            $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+
+            if (!empty($flow)) {
+                printLog("Found next flow action.");
+                $actionLogData = [
+                    "campaign_id" => $action_log->campaign_id,
+                    "no_of_records" => $action_log->no_of_records,
+                    "response" => "",
+                    "status" => "pending",
+                    "report_status" => "pending",
+                    "ref_id" => "",
+                    "flow_action_id" => $next_flow_id,
+                    "mongo_id" => $action_log->mongo_id,
+                    'campaign_log_id' => $action_log->campaign_log_id
+                ];
+                printLog('Creating new action as per channel id ', 1);
+                $actionLog = $campaign->actionLogs()->create($actionLogData);
+
+                return $actionLog;
+            } else {
+                printLog("Didn't found next flow action.");
+            }
+        }
         return;
-
-        // printLog("We are here to create new action log as per module data", 1);
-
-        // $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
-        // $campaign = Campaign::find($action_log->campaign_id);
-
-        // $next_flow_id = null;
-        // if ($status == 'Success')
-        //     $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
-        // else
-        //     $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
-
-        // printLog('Get status from microservice ' . $status, 1);
-        // printLog("Enents are ", 1, $events);
-        // if (in_array($status, $events) && !empty($next_flow_id)) {
-        //     printLog('Next flow id is ' . $next_flow_id, 1);
-        //     $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
-
-        //     if (!empty($flow)) {
-        //         printLog("Found next flow action.");
-        //         $actionLogData = [
-        //             "campaign_id" => $action_log->campaign_id,
-        //             "no_of_records" => $action_log->no_of_records,
-        //             "response" => "",
-        //             "status" => "pending",
-        //             "report_status" => "pending",
-        //             "ref_id" => "",
-        //             "flow_action_id" => $next_flow_id,
-        //             "mongo_id" => $action_log->mongo_id,
-        //             'campaign_log_id' => $action_log->campaign_log_id
-        //         ];
-        //         printLog('Creating new action as per channel id ', 1);
-        //         $actionLog = $campaign->actionLogs()->create($actionLogData);
-
-        //         return $actionLog;
-        //     } else {
-        //         printLog("Didn't found next flow action.");
-        //     }
-        // }
-        // return;
     }
 
     public function getReports($actionLogId)
