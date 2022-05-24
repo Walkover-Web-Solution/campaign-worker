@@ -37,14 +37,16 @@ class ChannelService
             return;
         }
 
-        $input['company'] = $campaign->company;
-        $input['user'] = $campaign->user;
-        $input['ip'] = $campaignLog->ip;
-        $input['need_validation'] = (bool) $campaignLog->need_validation;
-        config(['msg91.jwt_token' => createJWTToken($input)]);
+        
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
+
+        $input['company'] = $campaign->company;
+        $input['user'] = $campaign->user;
+        $input['ip'] = $campaignLog->ip;
+        $input['need_validation'] = $flow['channel_id'] == 2 ? false : (bool) $campaignLog->need_validation;
+        config(['msg91.jwt_token' => createJWTToken($input)]);
 
         if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
