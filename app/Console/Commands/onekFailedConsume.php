@@ -39,7 +39,8 @@ class onekFailedConsume extends Command
     {
         printLog("=============== We are in docodedData of failed onek queue ===================", 2);
         try {
-            RabbitMQJob::dispatch($msg->getBody())->onQueue('1k_data_queue');
+            // $message = json_encode($msg->getBody(),true);
+            RabbitMQJob::dispatch($msg)->onQueue('1k_data_queue');
         } catch (\Exception $e) {
             $logData = [
                 "exception" => $e->getMessage(),
