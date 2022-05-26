@@ -69,7 +69,7 @@ class RunEmailCampaignConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job email", $logData);
-            printLog("Found exception in run email ", 1,  $logData);
+            printLog("Found exception in run email ", 5,  $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }

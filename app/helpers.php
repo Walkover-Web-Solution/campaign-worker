@@ -233,43 +233,45 @@ function setService($channel)
  */
 function printLog($message, $log = 1, $data = null)
 {
-    // return;
-    switch ($log) {
-        case 1: {
-                if ($data != null)
-                    Log::debug($message, $data);
-                else
-                    Log::debug($message);
-                break;
-            }
-        case 2: {
-                Log::info($message);
-                break;
-            }
-        case 3: {
-                Log::alert($message);
-                break;
-            }
-        case 4: {
-                Log::notice($message);
-                break;
-            }
-        case 5: {
-                Log::error($message);
-                break;
-            }
-        case 6: {
-                Log::warning($message);
-                break;
-            }
-        case 7: {
-                Log::critical($message);
-                break;
-            }
-        case 8: {
-                Log::emergency($message);
-                break;
-            }
+    if ($log == 5 || str_starts_with($data, "======")) {
+        // return;
+        switch ($log) {
+            case 1: {
+                    if ($data != null)
+                        Log::debug($message, $data);
+                    else
+                        Log::debug($message);
+                    break;
+                }
+            case 2: {
+                    Log::info($message);
+                    break;
+                }
+            case 3: {
+                    Log::alert($message);
+                    break;
+                }
+            case 4: {
+                    Log::notice($message);
+                    break;
+                }
+            case 5: {
+                    Log::error($message);
+                    break;
+                }
+            case 6: {
+                    Log::warning($message);
+                    break;
+                }
+            case 7: {
+                    Log::critical($message);
+                    break;
+                }
+            case 8: {
+                    Log::emergency($message);
+                    break;
+                }
+        }
     }
 }
 

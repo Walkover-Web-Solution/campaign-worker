@@ -71,7 +71,7 @@ class RunSmsCampaignConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job sms", $logData);
-            printLog("Found exception in run sms ", 1,  $logData);
+            printLog("Found exception in run sms ", 5,  $logData);
 
             $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $msg->getBody());
         }

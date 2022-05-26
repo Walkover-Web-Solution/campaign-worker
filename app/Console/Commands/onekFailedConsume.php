@@ -47,7 +47,7 @@ class onekFailedConsume extends Command
                 "stack" => $e->getTrace()
             ];
             
-            printLog("Exception in failed onek", 1, $logData);
+            printLog("Exception in failed onek", 5, $logData);
         }
         $msg->ack();
     }

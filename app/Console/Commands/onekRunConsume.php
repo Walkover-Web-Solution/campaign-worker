@@ -63,7 +63,7 @@ class onekRunConsume extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job 1k", $logData);
-            printLog("Exception in onek", 1, $logData);
+            printLog("Exception in onek", 5, $logData);
             if (empty($this->rabbitmq)) {
                 $this->rabbitmq = new RabbitMQLib;
             }
