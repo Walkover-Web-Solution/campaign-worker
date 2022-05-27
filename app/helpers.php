@@ -417,3 +417,12 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
     });
     return $obj->variables;
 }
+
+function countContacts($data)
+{
+    $countArr = collect($data)->map(function ($contacts) {
+        return collect($contacts)->whereNotNull('mobiles')->count();
+    })->toArray();
+
+    return array_sum($countArr);
+}
