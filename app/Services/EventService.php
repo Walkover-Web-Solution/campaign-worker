@@ -31,13 +31,10 @@ class EventService
         ]);
         $requestBody = json_decode(json_encode($requestBody))[0]->data;
 
-        $mongo_id = '';
         $campaign_id_split = explode('_', $requestBody->campaign_id);
-        for ($i = 1; $i < count($campaign_id_split); $i++) {
-            $mongo_id .= empty($mongo_id) ? $campaign_id_split[$i] : '_' . $campaign_id_split[$i];
-        }
+        $actionLogId = $campaign_id_split[0];
 
-        $action_log = ActionLog::where('mongo_id', $mongo_id)->first();
+        $action_log = ActionLog::where('id', $actionLogId)->first();
         if (empty($action_log)) {
             throw new \Exception('Action Log not found!');
         }
