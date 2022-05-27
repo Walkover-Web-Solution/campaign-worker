@@ -34,7 +34,7 @@ class EventService
         $campaign_id_split = explode('_', $requestBody->campaign_id);
         $actionLogId = $campaign_id_split[0];
 
-        $action_log = ActionLog::where('id', $actionLogId)->first();
+        $action_log = ActionLog::where('id', (int)$actionLogId)->first();
         if (empty($action_log)) {
             throw new \Exception('Action Log not found!');
         }
