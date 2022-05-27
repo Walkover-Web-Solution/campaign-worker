@@ -49,7 +49,9 @@ class EventService
         // Filter data according to events
         $filteredData = $this->getEventFilteredData($requestBody->data, $channel_id, $mongo_data);
 
-        collect($action_log->flowAction->module_data)->map(function ($flowActionId, $key) use ($filteredData, $action_log) {
+        $obj = new \stdClass();
+        $obj->noActionFoundFlag = true;
+        collect($action_log->flowAction->module_data)->map(function ($flowActionId, $key) use ($filteredData, $action_log, $obj) {
             if (\Str::startsWith($key, 'op_')) {
                 $keySplit = explode('_', $key);
                 if (count($keySplit) == 2) {
@@ -60,6 +62,7 @@ class EventService
                         // create next action_log
                         $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]]);
                         if (!empty($next_action_log)) {
+                            $obj->noActionFoundFlag = false;
                             $input = new \stdClass();
                             $input->action_log_id =  $next_action_log->id;
                             // create job for next_action_log
@@ -69,6 +72,10 @@ class EventService
                 }
             }
         });
+        if ($obj->noActionFoundFlag) {
+            // Call cron to set campaignLog Complete
+            updateCampaignLogStatus($action_log->campaignLog()->first());
+        }
     }
 
     /**

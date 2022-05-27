@@ -13,7 +13,7 @@ class ProcessEventConsumer extends Command
      *
      * @var string
      */
-    protected $signature = 'process:event';
+    protected $signature = 'events:process';
 
     /**
      * The console command description.

@@ -121,6 +121,9 @@ class ChannelService
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             createNewJob($nextFlowAction->channel_id, $input, $delayValue);
+        } else {
+            // Call cron to set campaignLog Complete
+            updateCampaignLogStatus($campaignLog);
         }
 
         return;
@@ -200,6 +203,9 @@ class ChannelService
                 $obj->mobilesArr = [];
 
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables, $temp) {
+                    if (empty($item['variables'])) {
+                        $item['variables'] = [];
+                    }
                     $smsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
                     $item = array_merge($item, $smsVariables);
                     unset($item['variables']);
