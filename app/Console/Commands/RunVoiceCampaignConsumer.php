@@ -42,9 +42,7 @@ class RunVoiceCampaignConsumer extends Command
      */
     public function handle()
     {
-        if(empty($this->rabbitmq)){
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('run_voice_campaigns', array($this, 'decodedData'));
     }
 
@@ -60,7 +58,8 @@ class RunVoiceCampaignConsumer extends Command
             $obj->sendData($action_log_id);
         } catch (\Exception $e) {
 
-            $this->rabbitmq->putInFailedQueue('failed_run_voice_campaigns', $msg->getBody());
+            $this->rabbitmq = RabbitMQLib::getInstance();
+            $this->rabbitmq->putInFailedQueue('failed_run_voice_campaigns', $message);
         }
         $msg->ack();
     }

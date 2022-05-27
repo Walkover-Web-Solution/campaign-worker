@@ -39,9 +39,7 @@ class RunRCSCampaignConsumer extends Command
      */
     public function handle()
     {
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('run_rcs_campaigns', array($this, 'decodedData'));
     }
 
@@ -58,9 +56,6 @@ class RunRCSCampaignConsumer extends Command
             $channelService = new ChannelService();
             $channelService->sendData($action_log_id);
         } catch (\Exception $e) {
-            if (empty($this->rabbitmq)) {
-                $this->rabbitmq = new RabbitMQLib;
-            }
             $logData = [
                 "actionLog" => $action_log_id,
                 "exception" => $e->getMessage(),
@@ -69,7 +64,8 @@ class RunRCSCampaignConsumer extends Command
             logTest("failed job rcs", $logData);
             printLog("Found exception in run rcs ", 1,  $logData);
 
-            $this->rabbitmq->putInFailedQueue('failed_run_rcs_campaigns', $msg->getBody());
+            $this->rabbitmq = RabbitMQLib::getInstance();
+            $this->rabbitmq->putInFailedQueue('failed_run_rcs_campaigns', $message);
         }
         $msg->ack();
     }
