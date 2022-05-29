@@ -53,7 +53,7 @@ cat .ebextensions/supervisor/email_consumption.conf > /etc/supervisor/conf.d/ema
 cat .ebextensions/supervisor/sms_consumption.conf > /etc/supervisor/conf.d/sms_consumption.conf
 cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/onek_data_process.conf
 cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/condition_consumption.conf
-cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/events_processing.conf
+
 cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/rcs_consumption.conf
 
 if ps aux | grep "[/]usr/bin/supervisord"; then

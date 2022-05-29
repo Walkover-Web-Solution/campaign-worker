@@ -32,7 +32,7 @@ class RecordService
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
         // In case if campaign deleted by user
         if (empty($camp)) {
-            printLog("============= Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
+            printLog("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
             throw new Exception("No campaign found.");
         }
 

@@ -233,45 +233,43 @@ function setService($channel)
  */
 function printLog($message, $log = 1, $data = null)
 {
-    if ($log == 5 || str_starts_with($data, "======")) {
-        // return;
-        switch ($log) {
-            case 1: {
-                    if ($data != null)
-                        Log::debug($message, $data);
-                    else
-                        Log::debug($message);
-                    break;
-                }
-            case 2: {
-                    Log::info($message);
-                    break;
-                }
-            case 3: {
-                    Log::alert($message);
-                    break;
-                }
-            case 4: {
-                    Log::notice($message);
-                    break;
-                }
-            case 5: {
-                    Log::error($message);
-                    break;
-                }
-            case 6: {
-                    Log::warning($message);
-                    break;
-                }
-            case 7: {
-                    Log::critical($message);
-                    break;
-                }
-            case 8: {
-                    Log::emergency($message);
-                    break;
-                }
-        }
+    // return;
+    switch ($log) {
+        case 1: {
+                if ($data != null)
+                    Log::debug($message, $data);
+                else
+                    Log::debug($message);
+                break;
+            }
+        case 2: {
+                Log::info($message);
+                break;
+            }
+        case 3: {
+                Log::alert($message);
+                break;
+            }
+        case 4: {
+                Log::notice($message);
+                break;
+            }
+        case 5: {
+                Log::error($message);
+                break;
+            }
+        case 6: {
+                Log::warning($message);
+                break;
+            }
+        case 7: {
+                Log::critical($message);
+                break;
+            }
+        case 8: {
+                Log::emergency($message);
+                break;
+            }
     }
 }
 
@@ -385,9 +383,8 @@ function createNewJob($channel_id, $input, $delayTime)
         $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
         dispatch($job); //dispatching the job
     } else {
-        // $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
-        // dispatch($job);
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        dispatch($job);
     }
     printLog("Successfully created new job.", 2);
 }
@@ -410,13 +407,4 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         }
     });
     return $obj->variables;
-}
-
-function countContacts($data)
-{
-    $countArr = collect($data)->map(function ($contacts) {
-        return collect($contacts)->whereNotNull('mobiles')->count();
-    })->toArray();
-
-    return array_sum($countArr);
 }

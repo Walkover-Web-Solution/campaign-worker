@@ -29,7 +29,9 @@ class runConditionQueueConsumer extends Command
      */
     public function handle()
     {
-        $this->rabbitmq = RabbitMQLib::getInstance();
+        if (empty($this->rabbitmq)) {
+            $this->rabbitmq = new RabbitMQLib;
+        }
         $this->rabbitmq->dequeue('condition_queue', array($this, 'decodedData'));
     }
 
@@ -46,16 +48,18 @@ class runConditionQueueConsumer extends Command
             $channelService = new ConditionService();
             $channelService->handleCondition($action_log_id);
         } catch (\Exception $e) {
+            if (empty($this->rabbitmq)) {
+                $this->rabbitmq = new RabbitMQLib;
+            }
             $logData = [
                 "actionLog" => $action_log_id,
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
             logTest("failed job consition", $logData);
-            printLog("Found exception in run sms ", 5,  $logData);
+            printLog("Found exception in run sms ", 1,  $logData);
 
-            $this->rabbitmq = RabbitMQLib::getInstance();
-            $this->rabbitmq->putInFailedQueue('failed_condition_queue', $message);
+            $this->rabbitmq->putInFailedQueue('failed_condition_queue', $msg->getBody());
         }
         $msg->ack();
     }
