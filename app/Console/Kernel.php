@@ -19,7 +19,8 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('updateStatus:campaignLog')->everySixHours();
         // This command will pick job from onek failed and enqueue back to one k queue
-        // $schedule->command('onekfailed:consume')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedJobs')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedChannelJobs')->everyFifteenMinutes();
     }
 
     /**

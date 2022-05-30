@@ -48,9 +48,9 @@ class RabbitMQLib
 		// 	Cache::put('rabbitmqInstance', RabbitMQLib::$instance);
 		// }
 
-		// if (empty(RabbitMQLib::$instance)) {
-		RabbitMQLib::$instance = new RabbitMQLib();
-		// }
+		if (empty(RabbitMQLib::$instance)) {
+			RabbitMQLib::$instance = new RabbitMQLib();
+		}
 
 		return RabbitMQLib::$instance;
 	}

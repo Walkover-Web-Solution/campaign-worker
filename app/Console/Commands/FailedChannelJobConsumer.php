@@ -32,7 +32,6 @@ class FailedChannelJobConsumer extends Command
     public function handle()
     {
         $this->rabbitmq = RabbitMQLib::getInstance();
-        dd($this->rabbitmq);
 
         $this->queue = 'run_email_campaigns';
         $this->rabbitmq->dequeue('failed_' . $this->queue, array($this, 'decodedData'));
