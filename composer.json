@@ -17,6 +17,7 @@
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
         "mongodb/mongodb": "^1.12",
+        "php-amqplib/php-amqplib": "^3.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^12.0"
     },
     "require-dev": {

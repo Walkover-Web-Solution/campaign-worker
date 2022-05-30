@@ -233,7 +233,7 @@ function setService($channel)
  */
 function printLog($message, $log = 1, $data = null)
 {
-    if ($log == 5 || str_starts_with($data, "======")) {
+    if ($log == 5 || str_starts_with($message, "======")) {
         // return;
         switch ($log) {
             case 1: {
