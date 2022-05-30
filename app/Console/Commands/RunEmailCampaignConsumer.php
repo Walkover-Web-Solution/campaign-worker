@@ -43,9 +43,7 @@ class RunEmailCampaignConsumer extends Command
      */
     public function handle()
     {
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('run_email_campaigns', array($this, 'decodedData'));
     }
     public function decodedData($msg)
@@ -58,6 +56,7 @@ class RunEmailCampaignConsumer extends Command
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
             $action_log_id = unserialize($obj)->data->action_log_id;
+            throw new \Exception('g');
             // $action_log_id=$message['action_log_id'];
             $channelService = new ChannelService();
 
@@ -70,10 +69,9 @@ class RunEmailCampaignConsumer extends Command
             ];
             logTest("failed job email", $logData);
             printLog("Found exception in run email ", 1,  $logData);
-            if (empty($this->rabbitmq)) {
-                $this->rabbitmq = new RabbitMQLib;
-            }
-            $this->rabbitmq->putInFailedQueue('failed_run_email_campaigns', $msg->getBody());
+
+            $this->rabbitmq = RabbitMQLib::getInstance();
+            $this->rabbitmq->putInFailedQueue('failed_run_email_campaigns', $message);
         }
         $msg->ack();
     }
