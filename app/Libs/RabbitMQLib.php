@@ -16,7 +16,7 @@ class RabbitMQLib
 
 	private static $instance;
 
-	protected function __construct()
+	public function __construct()
 	{
 		//define('AMQP_DEBUG', true);
 
@@ -48,9 +48,9 @@ class RabbitMQLib
 		// 	Cache::put('rabbitmqInstance', RabbitMQLib::$instance);
 		// }
 
-		if (empty(RabbitMQLib::$instance)) {
-			RabbitMQLib::$instance = new RabbitMQLib();
-		}
+		// if (empty(RabbitMQLib::$instance)) {
+		RabbitMQLib::$instance = new RabbitMQLib();
+		// }
 
 		return RabbitMQLib::$instance;
 	}
