@@ -42,9 +42,7 @@ class RunWhatsAppCampaignConsumer extends Command
      */
     public function handle()
     {
-        if(empty($this->rabbitmq)){
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('run_whatsapp_campaigns', array($this, 'decodedData'));
     }
 
@@ -58,8 +56,8 @@ class RunWhatsAppCampaignConsumer extends Command
 
             $obj->sendData($action_log_id);
         } catch (\Exception $e) {
-
-            $this->rabbitmq->putInFailedQueue('failed_run_whatsapp_campaigns', $msg->getBody());
+            $this->rabbitmq = RabbitMQLib::getInstance();
+            $this->rabbitmq->putInFailedQueue('failed_run_whatsapp_campaigns', $message);
         }
         $msg->ack();
     }

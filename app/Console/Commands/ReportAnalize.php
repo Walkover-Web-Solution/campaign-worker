@@ -39,9 +39,7 @@ class ReportAnalize extends Command
      */
     public function handle()
     {
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('getReports', array($this, 'decodedData'));
     }
 
@@ -56,9 +54,7 @@ class ReportAnalize extends Command
             $obj->getReports($action_log_id);
         } catch (\Exception $e) {
 
-            if (empty($this->rabbitmq)) {
-                $this->rabbitmq = new RabbitMQLib;
-            }
+            $this->rabbitmq = RabbitMQLib::getInstance();
             printLog('ERROR', 1, (array)$e->getMessage());
             $this->rabbitmq->putInFailedQueue('failed_getReports', $msg->getBody());
         }

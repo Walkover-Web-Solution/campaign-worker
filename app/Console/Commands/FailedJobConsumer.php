@@ -2,37 +2,27 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\RabbitMQJob;
 use App\Libs\RabbitMQLib;
-use App\Services\RecordService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
-class onekRunConsume extends Command
+class FailedJobConsumer extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'onek:consume';
+    protected $signature = 'enqueue:failedJobs';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'To consume the queue have record less than 1k data';
+    protected $description = 'Command description';
     protected $rabbitmq;
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-
-        parent::__construct();
-    }
+    protected $queue;
 
     /**
      * Execute the console command.
@@ -42,31 +32,32 @@ class onekRunConsume extends Command
     public function handle()
     {
         $this->rabbitmq = RabbitMQLib::getInstance();
-        $this->rabbitmq->dequeue('1k_data_queue', array($this, 'decodedData'));
+
+        $this->queue = '1k_data_queue';
+        $this->rabbitmq->dequeue('failed_' . $this->queue, array($this, 'decodedData'));
     }
+
     public function decodedData($msg)
     {
-        $campLogId = null;
         printLog("=============== We are in docodedData ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
-            $recordService = new RecordService();
-            $recordService->executeFlowAction($campLogId);
+            $input = new \stdClass();
+            $input->campaignLogId = $campLogId;
+            RabbitMQJob::dispatch($input)->onQueue($this->queue);
         } catch (\Exception $e) {
-            $LogId = isset($campLogId) ? $campLogId : 'NA';
             $logData = [
-                "actionLog" => $LogId,
+                "actionLog" => $campLogId,
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
-            logTest("failed job 1k", $logData);
-            printLog("Exception in onek", 1, $logData);
+            logTest("failed job " . $this->queue, $logData);
+            printLog("Exception in " . $this->queue, 1, $logData);
 
             $this->rabbitmq = RabbitMQLib::getInstance();
-
-            $this->rabbitmq->putInFailedQueue('failed_1k_data_queue', $message);
+            $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
         }
         $msg->ack();
     }

@@ -2,11 +2,10 @@
 
 namespace App\Libs;
 
-use App\Jobs\RabbitMQJob;
+use Illuminate\Support\Facades\Cache;
 use PhpAmqpLib\Connection\AMQPLazySSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
-use PhpAmqpLib\Connection\AMQPSSLConnection;
 
 
 class RabbitMQLib
@@ -15,7 +14,9 @@ class RabbitMQLib
 	protected $channel;
 	protected $connection;
 
-	public function __construct()
+	private static $instance;
+
+	protected function __construct()
 	{
 		//define('AMQP_DEBUG', true);
 
@@ -36,6 +37,22 @@ class RabbitMQLib
 			);
 		}
 		$this->channel = $this->connection->channel();
+	}
+
+	public static function getInstance()
+	{
+		// RabbitMQLib::$instance = Cache::get('rabbitmqInstance');
+
+		// if (empty(RabbitMQLib::$instance)) {
+		// 	RabbitMQLib::$instance = new RabbitMQLib();
+		// 	Cache::put('rabbitmqInstance', RabbitMQLib::$instance);
+		// }
+
+		if (empty(RabbitMQLib::$instance)) {
+			RabbitMQLib::$instance = new RabbitMQLib();
+		}
+
+		return RabbitMQLib::$instance;
 	}
 
 	public function enqueue($queue, $data)
