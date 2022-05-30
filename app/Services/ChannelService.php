@@ -37,14 +37,16 @@ class ChannelService
             return;
         }
 
-        $input['company'] = $campaign->company;
-        $input['user'] = $campaign->user;
-        $input['ip'] = $campaignLog->ip;
-        $input['need_validation'] = (bool) $campaignLog->need_validation;
-        config(['msg91.jwt_token' => createJWTToken($input)]);
+        
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
+
+        $input['company'] = $campaign->company;
+        $input['user'] = $campaign->user;
+        $input['ip'] = $campaignLog->ip;
+        $input['need_validation'] = $flow['channel_id'] == 2 ? false : (bool) $campaignLog->need_validation;
+        config(['msg91.jwt_token' => createJWTToken($input)]);
 
         if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
@@ -88,9 +90,7 @@ class ChannelService
             $res->hasError = true;
             $res->message = "No Data Found";
         } else {
-            // if ($flow['channel_id'] == 2) {
-            //     // printLog("DATA HERE", 1, (array)$data);
-            // }
+            printLog("Now sending data to microservice", 1);
             $res = $lib->send($reqBody->data);
             //adding duplicate count to response
             if (!empty($res)) {
@@ -103,6 +103,11 @@ class ChannelService
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
         $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
+        // in case of rcs for webhook
+        if ($flow->channel_id == 5) {
+            printLog("Job Consumed");
+            return;
+        }
         printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
         if (!empty($new_action_log)) {
 
@@ -118,6 +123,9 @@ class ChannelService
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             createNewJob($nextFlowAction->channel_id, $input, $delayValue);
+        } else {
+            // Call cron to set campaignLog Complete
+            updateCampaignLogStatus($campaignLog);
         }
 
         return;
@@ -197,7 +205,7 @@ class ChannelService
                 $obj->mobilesArr = [];
 
                 $mongo_data['mobiles']->map(function ($item) use ($obj, $variables, $temp) {
-                    $smsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
+                    $smsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
                     $item = array_merge($item, $smsVariables);
                     unset($item['variables']);
                     array_push($obj->mobilesArr, $item);
@@ -218,7 +226,7 @@ class ChannelService
                 $obj->customer_number_variables = [];
                 collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $temp) {
                     // get variables for this contact
-                    $rcsVariables = getChannelVariables($temp->variables, (array)$item['variables'], $variables);
+                    $rcsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
                     $data = [
                         'customer_number' => $item['customer_number'],
                         'variables' => array_values($rcsVariables)
@@ -236,9 +244,6 @@ class ChannelService
 
     public function updateActionLogResponse($flow, $action_log, $res, $reqDataCount)
     {
-
-        printLog("Now sending data to microservice", 1);
-
         $val = "";
         $status = "Success";
         if ($flow->channel_id == 1 && !empty($res) && !$res->hasError) {
@@ -253,21 +258,17 @@ class ChannelService
             printLog("Microservice api failed.");
         }
 
-        $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
-        $campaign = Campaign::find($action_log->campaign_id);
-        /**
-         *  geting the next flow id according to the responce status from microservice
-         */
-        // if (empty($val))
-        //     $status = 'Failed';
-        // else
-        //     $status = ucfirst($res->status);
-
-        // Need to save response received from microservice. - TASK
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
+        // in case of rcs for webhook
+        if ($flow->channel_id == 5)
+            return;
+
         printLog("We are here to create new action log as per module data", 1);
+
+        $events = ChannelType::where('id', $flow->channel_id)->first()->events()->pluck('name')->toArray(); //generating an array of all the events belong to flow channel id
+        $campaign = Campaign::find($action_log->campaign_id);
 
         $next_flow_id = null;
         if ($status == 'Success')

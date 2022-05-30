@@ -62,7 +62,7 @@ class RunRCSCampaignConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job rcs", $logData);
-            printLog("Found exception in run rcs ", 1,  $logData);
+            printLog("Found exception in run rcs ", 5,  $logData);
 
             $this->rabbitmq = RabbitMQLib::getInstance();
             $this->rabbitmq->putInFailedQueue('failed_run_rcs_campaigns', $message);

@@ -52,7 +52,7 @@ class runConditionQueueConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job consition", $logData);
-            printLog("Found exception in run sms ", 1,  $logData);
+            printLog("Found exception in run sms ", 5,  $logData);
 
             $this->rabbitmq = RabbitMQLib::getInstance();
             $this->rabbitmq->putInFailedQueue('failed_condition_queue', $message);

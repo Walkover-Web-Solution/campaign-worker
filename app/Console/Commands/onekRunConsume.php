@@ -55,8 +55,9 @@ class onekRunConsume extends Command
             $recordService = new RecordService();
             $recordService->executeFlowAction($campLogId);
         } catch (\Exception $e) {
+            $LogId = isset($campLogId) ? $campLogId : 'NA';
             $logData = [
-                "actionLog" => $campLogId,
+                "actionLog" => $LogId,
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
