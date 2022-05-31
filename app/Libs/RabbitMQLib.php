@@ -25,7 +25,7 @@ class RabbitMQLib
 			$this->connection = new AMQPStreamConnection(config('services.rabbitmq.host'), config('services.rabbitmq.port'), config('services.rabbitmq.username'), config('services.rabbitmq.password'));
 		} else {
 			// $timeout = 24 * 60 * 60;
-			$timeout = 60;
+			$timeout = 0;
 			$this->connection = new AMQPLazySSLConnection(
 				config('services.rabbitmq.host'),
 				config('services.rabbitmq.port'),
@@ -33,7 +33,7 @@ class RabbitMQLib
 				config('services.rabbitmq.password'),
 				'/',
 				['verify_peer_name' => false],
-				['heartbeat' => 10, 'connection_timeout' => $timeout, 'read_write_timeout' => (24*60*60)],
+				['heartbeat' => 0, 'connection_timeout' => $timeout, 'read_write_timeout' => $timeout],
 				'ssl'
 			);
 		}
@@ -49,9 +49,14 @@ class RabbitMQLib
 		// 	Cache::put('rabbitmqInstance', RabbitMQLib::$instance);
 		// }
 
-		if (empty(RabbitMQLib::$instance)) {
+		try {
 			RabbitMQLib::$instance = new RabbitMQLib();
+		} catch (\Exception $ex) {
+			logTest("Error in Rabbitmq initialization.", ["stack" => $ex->getTrace()]);
 		}
+		// if (empty(RabbitMQLib::$instance)) {
+		// RabbitMQLib::$instance = new RabbitMQLib();
+		// }
 
 		return RabbitMQLib::$instance;
 	}
