@@ -18,7 +18,8 @@ TOTAL_MEMORY_IN_MB=$(($TOTAL_MEMORY_IN_KB / 1024))
 USED_MEMORY_IN_MB=$(($USED_MEMORY_IN_KB / 1024))
 FREE_MEMORY_IN_MB=$(($FREE_MEMORY_IN_KB / 1024))
 
-MAX_CHILDREN=$(($FREE_MEMORY_IN_MB / $PROCESS_MAX_MB))
+# MAX_CHILDREN=$(($FREE_MEMORY_IN_MB / $PROCESS_MAX_MB))
+MAX_CHILDREN="120"
 
 # Optimal would be to have at least 1/4th of the children filled with children waiting to serve requests.
 START_SERVERS=$(($MAX_CHILDREN / 4))
