@@ -6,14 +6,14 @@ use App\Jobs\RabbitMQJob;
 use App\Libs\RabbitMQLib;
 use Illuminate\Console\Command;
 
-class FailedJobConsumer extends Command
+class FailedOnekConsumer extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'enqueue:failedJobs';
+    protected $signature = 'enqueue:failedOnek';
 
     /**
      * The console command description.
@@ -42,8 +42,9 @@ class FailedJobConsumer extends Command
         printLog("=============== We are in docodedData of Failed Job Consumer ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
-            if(empty($message['data'])){
-                $msg->ack();return;
+            if (empty($message['data'])) {
+                $msg->ack();
+                return;
             }
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
