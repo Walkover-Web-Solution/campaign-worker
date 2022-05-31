@@ -39,7 +39,7 @@ class FailedJobConsumer extends Command
 
     public function decodedData($msg)
     {
-        printLog("=============== We are in docodedData ===================", 2);
+        printLog("=============== We are in docodedData of Failed Job Consumer ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
