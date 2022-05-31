@@ -5,22 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class ChannelType extends Model
+class Event extends Model
 {
     use HasFactory;
 
+
     protected $fillable = [
         'name',
-        'configurations',
+        'is_boolean',
+        'wait_to_fail',
     ];
 
-    protected $casts = [
-        'configurations' => 'json',
-    ];
+    protected $casts = array(
+        'is_boolean' => 'boolean',
+        'wait_to_fail' => 'boolean'
+    );
 
     protected $hidden = array(
         'created_at',
-        'updated_at'
+        'updated_at',
+        'pivot'
     );
 
     /**
@@ -31,8 +35,8 @@ class ChannelType extends Model
         return $this->morphMany(FlowAction::class, 'linked');
     }
 
-    public function events()
+    public function channel()
     {
-        return $this->belongsToMany(Event::class)->using(ChannelTypeEvent::class);
+        return $this->belongsToMany(ChannelType::class)->using(ChannelTypeEvents::class);
     }
 }

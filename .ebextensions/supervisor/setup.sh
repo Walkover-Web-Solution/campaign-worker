@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# If you want to have more than one application, and in just one of them to run the supervisor, uncomment the lines below, 
+# If you want to have more than one application, and in just one of them to run the supervisor, uncomment the lines below,
 # and add the env variable IS_WORKER as true in the EBS application you want the supervisor
 
 #if [ "${IS_WORKER}" != "true" ]; then
@@ -52,11 +52,13 @@ cat .ebextensions/supervisor/supervisord.conf > /etc/supervisord.conf
 cat .ebextensions/supervisor/email_consumption.conf > /etc/supervisor/conf.d/email_consumption.conf
 cat .ebextensions/supervisor/sms_consumption.conf > /etc/supervisor/conf.d/sms_consumption.conf
 cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/onek_data_process.conf
-
+cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/condition_consumption.conf
+cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/events_processing.conf
+cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/rcs_consumption.conf
 
 if ps aux | grep "[/]usr/bin/supervisord"; then
     echo "supervisor is running"
-    /usr/bin/supervisorctl stop all 
+    /usr/bin/supervisorctl stop all
 else
     echo "starting supervisor"
     /usr/bin/supervisord

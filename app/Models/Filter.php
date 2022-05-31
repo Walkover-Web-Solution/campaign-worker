@@ -2,22 +2,24 @@
 
 namespace App\Models;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class ChannelTypeCondition extends Pivot
+class Filter extends Model
 {
     use HasFactory;
-
     protected $fillable = [
-        'channel_id ',
-        'condition_id',
+        'name',
+        'field',
+        'short_name',
+        'operation',
+        'value',
+        'query'
     ];
 
     protected $hidden = array(
         'created_at',
-        'updated_at'
+        'updated_at',
+        'pivot'
     );
 }

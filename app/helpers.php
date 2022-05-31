@@ -1,18 +1,25 @@
 <?php
 
+use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
+use App\Libs\RabbitMQLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
 use App\Models\CampaignLog;
+use App\Models\Condition;
+use App\Models\Filter;
+use App\Models\FlowAction;
 use App\Services\EmailService;
 use App\Services\RcsService;
 use App\Services\SmsService;
 use App\Services\VoiceService;
 use App\Services\WhatsappService;
+use Carbon\Carbon;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
@@ -118,34 +125,37 @@ function convertBody($md, $campaign)
     $obj->hasChannel->map(function ($channel) use ($item, $obj) {
         $service = setService($channel);
         switch ($channel) {
-            case 1:
-                $to = [];
-                $cc = [];
-                $bcc = [];
+            case 1: {
+                    $to = [];
+                    $cc = [];
+                    $bcc = [];
+                    if (isset($item->to)) {
+                        $to = $service->createRequestBody($item->to);
+                        $to = collect($to)->whereNotNull('email');
+                    }
+                    if (isset($item->cc)) {
+                        $cc = $service->createRequestBody($item->cc);
+                        $cc = collect($cc)->whereNotNull('email');
+                    }
+                    if (isset($item->bcc)) {
+                        $bcc = $service->createRequestBody($item->bcc);
+                        $bcc = collect($bcc)->whereNotNull('email');
+                    }
+                    $obj->emails = [
+                        "to" => $to,
+                        "cc" => $cc,
+                        "bcc" => $bcc,
+                    ];
 
-                if (isset($item->to)) {
-                    $to = $service->createRequestBody($item->to);
-                    $to = collect($to)->whereNotNull('email');
+                    $obj->emailCount = count($to) + count($cc) + count($bcc);
                 }
-                if (isset($item->cc)) {
-                    $cc = $service->createRequestBody($item->cc);
-                    $cc = collect($cc)->whereNotNull('email');
-                }
-                if (isset($item->bcc)) {
-                    $bcc = $service->createRequestBody($item->bcc);
-                    $bcc = collect($bcc)->whereNotNull('email');
-                }
-                $obj->emails = [
-                    "to" => $to,
-                    "cc" => $cc,
-                    "bcc" => $bcc,
-                ];
-
-                $obj->emailCount = count($to) + count($cc) + count($bcc);
                 break;
-            case 2:
-                $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
-                $obj->mobileCount = count($obj->mobiles);
+            case 6: // for condition flowAciton
+                break;
+            default: {
+                    $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
+                    $obj->mobileCount = count($obj->mobiles);
+                }
                 break;
         }
     });
@@ -154,7 +164,6 @@ function convertBody($md, $campaign)
         "mobiles" => $obj->mobiles,
         "variables" => $variables
     ];
-
     return $data;
 }
 
@@ -176,6 +185,7 @@ function updateCampaignLogStatus(CampaignLog $campaignLog)
     }
 }
 
+
 function setLibrary($channel)
 {
     $email = 1;
@@ -192,8 +202,8 @@ function setLibrary($channel)
             return new WhatsAppLib();
         case $voice:
             return new VoiceLib();
-            // case $rcs:
-            //     return new RcsLib();
+        case $rcs:
+            return new RcsLib();
     }
 }
 function setService($channel)
@@ -212,8 +222,8 @@ function setService($channel)
             return new WhatsappService();
         case $voice:
             return new VoiceService();
-            // case $rcs:
-            //     return new RcsService();
+        case $rcs:
+            return new RcsService();
     }
 }
 
@@ -261,4 +271,150 @@ function printLog($message, $log = 1, $data = null)
                 break;
             }
     }
+}
+
+function getFilteredData($obj)
+{
+    //obj have mongoData, moduleData, data(required filteredData)
+    $obj->keys = [];
+    $obj->grpFlowActionMap = [];
+    $obj->variables = $obj->mongoData->variables;
+    collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
+        if ($field != 'variables') {
+            collect($contacts)->map(function ($contact) use ($obj, $field) {
+                if (!empty($contact->mobiles)) {
+                    $countryCode = getCountryCode($contact->mobiles);
+                    $key = 'op_' . $countryCode;
+                    if (!empty($obj->moduleData->$key)) {
+                        $grpKey = $key . '_grp_id';
+                        if (!empty($obj->moduleData->$grpKey)) {
+                            $grpId = $obj->moduleData->$grpKey;
+                            if (empty($obj->data->$grpId)) {
+                                array_push($obj->keys, $grpId);
+                                $obj->data->$grpId = new \stdClass();
+                                $obj->data->$grpId->to = [];
+                                $obj->data->$grpId->cc = [];
+                                $obj->data->$grpId->bcc = [];
+                                $obj->data->$grpId->variables = $obj->variables;
+                                $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                            }
+                            array_push($obj->data->$grpId->$field, $contact);
+                        }
+                    }
+                }
+            });
+        }
+    });
+    return $obj;
+}
+
+function getFilteredDatawithRemainingGroups($obj)
+{
+    $usedGroupIds = $obj->keys;
+    $totalGroupIds = collect($obj->moduleData->groupNames)->keys()->toArray();
+    $remGroupIds = array_diff($totalGroupIds, $usedGroupIds);
+    collect($remGroupIds)->map(function ($remGroupId) use ($obj) {
+        collect($obj->moduleData)->map(function ($opVal, $opKey) use ($remGroupId, $obj) {
+            if (\Str::endsWith($opKey, 'grp_id') && $opVal == $remGroupId) {
+                $keySplit = explode('_', $opKey);
+                $key = $keySplit[0] . '_' . $keySplit[1];
+                if (!empty($obj->moduleData->$key)) {
+                    // initializing for the first time
+                    if (empty($obj->data->$remGroupId)) {
+                        $obj->data->$remGroupId = new \stdClass();
+                        $obj->data->$remGroupId->to = [];
+                        $obj->data->$remGroupId->cc = [];
+                        $obj->data->$remGroupId->bcc = [];
+                        $obj->data->$remGroupId->variables = $obj->variables;
+                    }
+                    $obj->grpFlowActionMap[$remGroupId] = $obj->moduleData->$key;
+                }
+            }
+        });
+    });
+    return $obj;
+}
+
+function getCountryCode($mobile)
+{
+    $condition = Condition::where('name', 'Countries')->with('filters:short_name,value')->first()->toArray();
+    for ($i = 4; $i > 0; $i--) {
+        $mobileCode = substr($mobile, 0, $i);
+
+        $codeData = collect($condition['filters'])->firstWhere('value', $mobileCode);
+        if (!empty($codeData)) {
+            $countryCode = $codeData['short_name'];
+            return $countryCode;
+        }
+    }
+    return 'others';
+}
+
+function getQueue($channel_id)
+{
+    switch ($channel_id) {
+        case 1:
+            return 'run_email_campaigns';
+        case 2:
+            return 'run_sms_campaigns';
+        case 3:
+            return 'run_whastapp_campaigns';
+        case 4:
+            return 'run_voice_campaigns';
+        case 5:
+            return 'run_rcs_campaigns';
+        case 6:
+            return 'condition_queue';
+    }
+}
+
+function createNewJob($channel_id, $input, $delayTime)
+{
+    printLog("Inside creating new job.", 2);
+    //selecting the queue name as per the flow channel id
+    $queue = getQueue($channel_id);
+    //   printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
+    printLog("Here to dispatch job.", 2);
+    // if (empty($rabbitmq)) {
+    //     $rabbitmq = new RabbitMQLib;
+    // }
+    // $rabbitmq->enqueue($queue, $input);
+    if (env('APP_ENV') == 'local') {
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
+        dispatch($job); //dispatching the job
+    } else {
+        // $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        // dispatch($job);
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+    }
+    printLog("Successfully created new job.", 2);
+}
+
+function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
+{
+    if (empty($contactVariables)) {
+        return $commonVariables;
+    }
+    $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
+    $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
+
+    $obj = new \stdClass();
+    $obj->variables = [];
+    collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+        if (!empty($contactVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+        } else if (!empty($commonVariables[$variableKey])) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        }
+    });
+    return $obj->variables;
+}
+
+function countContacts($data)
+{
+    $countArr = collect($data)->map(function ($contacts) {
+        return collect($contacts)->whereNotNull('mobiles')->count();
+    })->toArray();
+
+    return array_sum($countArr);
 }

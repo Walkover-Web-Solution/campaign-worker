@@ -3,69 +3,59 @@
 namespace App\Console\Commands;
 
 use App\Libs\RabbitMQLib;
-use App\Services\ChannelService;
+use App\Services\ConditionService;
 use Illuminate\Console\Command;
 
-class RunRCSCampaignConsumer extends Command
+class runConditionQueueConsumer extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'rcs:consume';
+    protected $signature = 'condition:consume';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'RCS consume command';
+    protected $description = 'The command is use to consume and handle the condition queue';
 
     /**
      * Create a new command instance.
      *
      * @return void
      */
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
     public function handle()
     {
         $this->rabbitmq = RabbitMQLib::getInstance();
-        $this->rabbitmq->dequeue('run_rcs_campaigns', array($this, 'decodedData'));
+        $this->rabbitmq->dequeue('condition_queue', array($this, 'decodedData'));
     }
 
     public function decodedData($msg)
     {
         try {
-            printLog("======== Found job in sms queue ========", 2);
+            printLog("======== Found job in condition queue ========", 2);
             $message = json_decode($msg->getBody(), true);
             // printLog("Decoding data from job ", 1, (array)$message);
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
             $action_log_id = unserialize($obj)->data->action_log_id;
             // $action_log_id=$message['action_log_id'];
-            $channelService = new ChannelService();
-            $channelService->sendData($action_log_id);
+            $channelService = new ConditionService();
+            $channelService->handleCondition($action_log_id);
         } catch (\Exception $e) {
             $logData = [
                 "actionLog" => $action_log_id,
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
-            logTest("failed job rcs", $logData);
-            printLog("Found exception in run rcs ", 5,  $logData);
+            logTest("failed job consition", $logData);
+            printLog("Found exception in run sms ", 5,  $logData);
 
             $this->rabbitmq = RabbitMQLib::getInstance();
-            $this->rabbitmq->putInFailedQueue('failed_run_rcs_campaigns', $message);
+            $this->rabbitmq->putInFailedQueue('failed_condition_queue', $message);
         }
         $msg->ack();
     }

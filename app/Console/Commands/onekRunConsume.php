@@ -41,13 +41,12 @@ class onekRunConsume extends Command
      */
     public function handle()
     {
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
+        $this->rabbitmq = RabbitMQLib::getInstance();
         $this->rabbitmq->dequeue('1k_data_queue', array($this, 'decodedData'));
     }
     public function decodedData($msg)
     {
+        $campLogId = null;
         printLog("=============== We are in docodedData ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
@@ -56,16 +55,18 @@ class onekRunConsume extends Command
             $recordService = new RecordService();
             $recordService->executeFlowAction($campLogId);
         } catch (\Exception $e) {
+            $LogId = isset($campLogId) ? $campLogId : 'NA';
             $logData = [
-                "actionLog" => $campLogId,
+                "actionLog" => $LogId,
                 "exception" => $e->getMessage(),
                 "stack" => $e->getTrace()
             ];
+            logTest("failed job 1k", $logData);
             printLog("Exception in onek", 1, $logData);
-            if (empty($this->rabbitmq)) {
-                $this->rabbitmq = new RabbitMQLib;
-            }
-            $this->rabbitmq->putInFailedQueue('failed_1k_data_queue', $msg->getBody());
+
+            $this->rabbitmq = RabbitMQLib::getInstance();
+
+            $this->rabbitmq->putInFailedQueue('failed_1k_data_queue', $message);
         }
         $msg->ack();
     }

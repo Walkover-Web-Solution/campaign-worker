@@ -2,15 +2,12 @@
 
 namespace App\Services;
 
-use App\Jobs\RabbitMQJob;
 use App\Libs\MongoDBLib;
-use App\Libs\RabbitMQLib;
 use App\Models\Campaign;
 use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Class RecordService
@@ -19,7 +16,6 @@ use Illuminate\Support\Facades\Log;
 class RecordService
 {
     protected $mongo;
-    protected $rabbitmq;
     public function __construct()
     {
     }
@@ -36,7 +32,7 @@ class RecordService
         $camp = Campaign::where('id', $camplog->campaign_id)->first();
         // In case if campaign deleted by user
         if (empty($camp)) {
-            printLog("xxxxxxxxxxxxxxxx Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
+            printLog("============= Campaign not found for campaign log id xxxxxxxxxxxxxxxxxx", 7);
             throw new Exception("No campaign found.");
         }
 
@@ -50,7 +46,7 @@ class RecordService
             throw new Exception("No flowaction found.");
         }
 
-        if(empty($this->mongo)){
+        if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
 
@@ -59,6 +55,7 @@ class RecordService
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
+        printLog("Found mongo data.", 2);
         collect($md[0]->data->sendTo)->map(function ($item) use ($camplog, $flow, $camp) {
             $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
             $data = [
@@ -67,7 +64,7 @@ class RecordService
             ];
             $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
             $actionLogData = [
-                "no_of_records" => 0,
+                "no_of_records" => $camplog->no_of_contacts,
                 "status" => "pending",
                 "report_status" => "pending",
                 "ref_id" => "",
@@ -77,39 +74,18 @@ class RecordService
                 'campaign_log_id' => $camplog->id
             ];
             $actionLog = $camp->actionLogs()->create($actionLogData);
+            $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+            if (empty($delayTime)) {
+                $delayValue = 0;
+            } else {
+                $delayValue = $delayTime->value;
+            }
             if (!empty($actionLog)) {
                 $input = new \stdClass();
                 $input->action_log_id =  $actionLog->id;
-                $this->createNewJob($flow->channel_id, $input);
+                printLog("Now creating new job for next flow action.", 2);
+                createNewJob($flow->channel_id, $input, $delayValue);
             }
         });
-    }
-    public function createNewJob($channel_id, $input)
-    {
-        //selecting the queue name as per the flow channel id
-        switch ($channel_id) {
-            case 1:
-                $queue = 'run_email_campaigns';
-                break;
-            case 2:
-                $queue = 'run_sms_campaigns';
-                break;
-            case 3:
-                $queue = 'run_whastapp_campaigns';
-                break;
-            case 4:
-                $queue = 'run_voice_campaigns';
-                break;
-            case 5:
-                $queue = 'run_rcs_campaigns';
-                break;
-        }
-        printLog("About to create job for " . $queue, 1);
-        if (empty($this->rabbitmq)) {
-            $this->rabbitmq = new RabbitMQLib;
-        }
-        $this->rabbitmq->enqueue($queue, $input);
-        printLog("'================= Created Job in " . $queue . " =============", 1);
-        // RabbitMQJob::dispatch($input)->onQueue($queue); //dispatching the job
     }
 }

@@ -16,11 +16,13 @@ class CampaignLog extends Model
         'no_of_contacts',
         'status',
         'ip',
-        'need_validation'
+        'need_validation',
+        'is_paused'
     ];
 
     protected $casts = [
-        'need_validation' => 'boolean'
+        'need_validation' => 'boolean',
+        'is_paused' => 'boolean'
     ];
 
     protected $hidden = [
