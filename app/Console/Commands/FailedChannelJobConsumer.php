@@ -53,6 +53,9 @@ class FailedChannelJobConsumer extends Command
         printLog("====== Queue name === " . $this->queue, 2);
         try {
             $message = json_decode($msg->getBody(), true);
+            if(empty($message['data'])){
+                $msg->ack();return;
+            }
             $obj = $message['data']['command'];
             $actionLogId = unserialize($obj)->data->action_log_id;
             if (empty($actionLogId)) {

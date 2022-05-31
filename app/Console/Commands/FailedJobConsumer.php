@@ -42,6 +42,9 @@ class FailedJobConsumer extends Command
         printLog("=============== We are in docodedData of Failed Job Consumer ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
+            if(empty($message['data'])){
+                $msg->ack();return;
+            }
             $obj = $message['data']['command'];
             $campLogId = unserialize($obj)->data->campaignLogId;
             $input = new \stdClass();
