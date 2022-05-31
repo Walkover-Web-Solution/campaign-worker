@@ -33,7 +33,7 @@ class RabbitMQLib
 				config('services.rabbitmq.password'),
 				'/',
 				['verify_peer_name' => false],
-				['heartbeat' => 0, 'connection_timeout' => $timeout, 'read_write_timeout' => $timeout],
+				['heartbeat' => 10, 'connection_timeout' => $timeout, 'read_write_timeout' => $timeout],
 				'ssl'
 			);
 		}
@@ -52,7 +52,7 @@ class RabbitMQLib
 		try {
 			RabbitMQLib::$instance = new RabbitMQLib();
 		} catch (\Exception $ex) {
-			logTest("Error in Rabbitmq initialization.", ["stack" => $ex->getTrace()]);
+			// logTest("Error in Rabbitmq initialization.", ["stack" => $ex->getTrace()]);
 		}
 		// if (empty(RabbitMQLib::$instance)) {
 		// RabbitMQLib::$instance = new RabbitMQLib();
