@@ -18,9 +18,14 @@ class Kernel extends ConsoleKernel
         // $schedule->command('check:report')->twiceDaily(7, 19);
         // $schedule->command('inspire')->hourly();
         $schedule->command('updateStatus:campaignLog')->everySixHours();
-        // This command will pick job from onek failed and enqueue back to one k queue
-        $schedule->command('enqueue:failedJobs')->everyMinute();
-        $schedule->command('enqueue:failedChannelJobs')->everyMinute();
+        // These command will pick job from failed and enqueue back to respective queues
+        $schedule->command('enqueue:failedOnek')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedEmail')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedSms')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedCondition')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedRcs')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedVoice')->everyFifteenMinutes();
+        $schedule->command('enqueue:failedWhatsapp')->everyFifteenMinutes();
     }
 
     /**
