@@ -33,7 +33,7 @@ class RabbitMQLib
 				config('services.rabbitmq.password'),
 				'/',
 				['verify_peer_name' => false],
-				['heartbeat' => 10, 'connection_timeout' => $timeout, 'read_write_timeout' => $timeout],
+				['heartbeat' => 0],
 				'ssl'
 			);
 		}
