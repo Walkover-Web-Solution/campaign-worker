@@ -116,55 +116,61 @@ function convertBody($md, $campaign)
     $obj->mobileCount = 0;
     $obj->emails = [];
     $obj->mobiles = [];
-    $item = $md[0]->data;
+    $obj->variables = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
-    $variables = [];
-    if (!empty($item->variables))
-        $variables = collect($item->variables)->toArray();
 
-    $obj->hasChannel->map(function ($channel) use ($item, $obj) {
+    $obj->hasChannel->map(function ($channel) use ($obj, $md) {
         $service = setService($channel);
-        switch ($channel) {
-            case 1: {
-                    $to = [];
-                    $cc = [];
-                    $bcc = [];
-                    if (isset($item->to)) {
-                        $to = $service->createRequestBody($item->to);
-                        $to = collect($to)->whereNotNull('email');
-                    }
-                    if (isset($item->cc)) {
-                        $cc = $service->createRequestBody($item->cc);
-                        $cc = collect($cc)->whereNotNull('email');
-                    }
-                    if (isset($item->bcc)) {
-                        $bcc = $service->createRequestBody($item->bcc);
-                        $bcc = collect($bcc)->whereNotNull('email');
-                    }
-                    $obj->emails = [
-                        "to" => $to,
-                        "cc" => $cc,
-                        "bcc" => $bcc,
-                    ];
+        collect($md)->map(function ($item) use ($obj, $service, $channel) {
+            switch ($channel) {
+                case 1: {
+                        if (!empty($item->variables))
+                            $obj->variables = collect($item->variables)->toArray();
 
-                    $obj->emailCount = count($to) + count($cc) + count($bcc);
-                }
-                break;
-            case 6: // for condition flowAciton
-                break;
-            default: {
-                    $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
-                    $obj->mobileCount = count($obj->mobiles);
-                }
-                break;
-        }
+                        $to = [];
+                        $cc = [];
+                        $bcc = [];
+                        if (isset($item->to)) {
+                            $to = $service->createRequestBody($item->to);
+                            $to = collect($to)->whereNotNull('email')->toArray();
+                        }
+                        if (isset($item->cc)) {
+                            $cc = $service->createRequestBody($item->cc);
+                            $cc = collect($cc)->whereNotNull('email')->toArray();
+                        }
+                        if (isset($item->bcc)) {
+                            $bcc = $service->createRequestBody($item->bcc);
+                            $bcc = collect($bcc)->whereNotNull('email')->toArray();
+                        }
+                        $emails = [
+                            "to" => $to,
+                            "cc" => $cc,
+                            "bcc" => $bcc,
+                            "variables"=>$obj->variables
+                        ];
+                        $obj->emailCount += count($to) + count($cc) + count($bcc);
+                        array_push($obj->emails,$emails);
+                    }
+                    break;
+                case 6: // for condition flowAciton
+                    break;
+                default: {
+                        $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
+                        $obj->mobiles=array_merge($obj->mobiles,$mobiles);
+                        $obj->mobileCount += count($obj->mobiles);
+                    }
+                    break;
+            }
+        });
+
     });
+
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
-        "variables" => $variables
+        "variables" => $obj->variables
     ];
-    return $data;
+    return($data);
 }
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
