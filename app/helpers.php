@@ -284,10 +284,10 @@ function printLog($message, $log = 1, $data = null)
 function getFilteredData($obj)
 {
     $obj->i = 0;
+    $obj->keys = [];
+    $obj->grpFlowActionMap = [];
     collect($obj->mongoData)->map(function ($item) use ($obj) {
         //obj have mongoData, moduleData, data(required filteredData)
-        $obj->keys = [];
-        $obj->grpFlowActionMap = [];
         $obj->variables = $item->variables;
         collect($item)->map(function ($contacts, $field) use ($obj) {
             if ($field != 'variables') {
@@ -300,16 +300,16 @@ function getFilteredData($obj)
                             if (!empty($obj->moduleData->$grpKey)) {
                                 $grpId = $obj->moduleData->$grpKey;
                                 if (empty($obj->data->$grpId)) {
+                                    array_push($obj->keys, $grpId);
                                     $obj->data->$grpId = [];
+                                    $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
                                 }
                                 if (empty($obj->data->$grpId[$obj->i])) {
-                                    array_push($obj->keys, $grpId);
                                     $obj->data->$grpId[$obj->i] = new \stdClass();
                                     $obj->data->$grpId[$obj->i]->to = [];
                                     $obj->data->$grpId[$obj->i]->cc = [];
                                     $obj->data->$grpId[$obj->i]->bcc = [];
                                     $obj->data->$grpId[$obj->i]->variables = $obj->variables;
-                                    $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
                                 }
                                 array_push($obj->data->$grpId[$obj->i]->$field, $contact);
                             }
