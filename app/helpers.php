@@ -146,23 +146,22 @@ function convertBody($md, $campaign)
                             "to" => $to,
                             "cc" => $cc,
                             "bcc" => $bcc,
-                            "variables"=>$obj->variables
+                            "variables" => $obj->variables
                         ];
                         $obj->emailCount += count($to) + count($cc) + count($bcc);
-                        array_push($obj->emails,$emails);
+                        array_push($obj->emails, $emails);
                     }
                     break;
                 case 6: // for condition flowAciton
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $obj->mobiles=array_merge($obj->mobiles,$mobiles);
+                        $obj->mobiles = array_merge($obj->mobiles, $mobiles);
                         $obj->mobileCount += count($obj->mobiles);
                     }
                     break;
             }
         });
-
     });
 
     $data = [
@@ -170,7 +169,7 @@ function convertBody($md, $campaign)
         "mobiles" => $obj->mobiles,
         "variables" => $obj->variables
     ];
-    return($data);
+    return $data;
 }
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
@@ -284,35 +283,42 @@ function printLog($message, $log = 1, $data = null)
 
 function getFilteredData($obj)
 {
-    //obj have mongoData, moduleData, data(required filteredData)
-    $obj->keys = [];
-    $obj->grpFlowActionMap = [];
-    $obj->variables = $obj->mongoData->variables;
-    collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
-        if ($field != 'variables') {
-            collect($contacts)->map(function ($contact) use ($obj, $field) {
-                if (!empty($contact->mobiles)) {
-                    $countryCode = getCountryCode($contact->mobiles);
-                    $key = 'op_' . $countryCode;
-                    if (!empty($obj->moduleData->$key)) {
-                        $grpKey = $key . '_grp_id';
-                        if (!empty($obj->moduleData->$grpKey)) {
-                            $grpId = $obj->moduleData->$grpKey;
-                            if (empty($obj->data->$grpId)) {
-                                array_push($obj->keys, $grpId);
-                                $obj->data->$grpId = new \stdClass();
-                                $obj->data->$grpId->to = [];
-                                $obj->data->$grpId->cc = [];
-                                $obj->data->$grpId->bcc = [];
-                                $obj->data->$grpId->variables = $obj->variables;
-                                $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+    $obj->i = 0;
+    collect($obj->mongoData)->map(function ($item) use ($obj) {
+        //obj have mongoData, moduleData, data(required filteredData)
+        $obj->keys = [];
+        $obj->grpFlowActionMap = [];
+        $obj->variables = $item->variables;
+        collect($item)->map(function ($contacts, $field) use ($obj) {
+            if ($field != 'variables') {
+                collect($contacts)->map(function ($contact) use ($obj, $field) {
+                    if (!empty($contact->mobiles)) {
+                        $countryCode = getCountryCode($contact->mobiles);
+                        $key = 'op_' . $countryCode;
+                        if (!empty($obj->moduleData->$key)) {
+                            $grpKey = $key . '_grp_id';
+                            if (!empty($obj->moduleData->$grpKey)) {
+                                $grpId = $obj->moduleData->$grpKey;
+                                if (empty($obj->data->$grpId)) {
+                                    $obj->data->$grpId = [];
+                                }
+                                if (empty($obj->data->$grpId[$obj->i])) {
+                                    array_push($obj->keys, $grpId);
+                                    $obj->data->$grpId[$obj->i] = new \stdClass();
+                                    $obj->data->$grpId[$obj->i]->to = [];
+                                    $obj->data->$grpId[$obj->i]->cc = [];
+                                    $obj->data->$grpId[$obj->i]->bcc = [];
+                                    $obj->data->$grpId[$obj->i]->variables = $obj->variables;
+                                    $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                                }
+                                array_push($obj->data->$grpId[$obj->i]->$field, $contact);
                             }
-                            array_push($obj->data->$grpId->$field, $contact);
                         }
                     }
-                }
-            });
-        }
+                });
+            }
+        });
+        $obj->i++;
     });
     return $obj;
 }
@@ -330,11 +336,12 @@ function getFilteredDatawithRemainingGroups($obj)
                 if (!empty($obj->moduleData->$key)) {
                     // initializing for the first time
                     if (empty($obj->data->$remGroupId)) {
-                        $obj->data->$remGroupId = new \stdClass();
-                        $obj->data->$remGroupId->to = [];
-                        $obj->data->$remGroupId->cc = [];
-                        $obj->data->$remGroupId->bcc = [];
-                        $obj->data->$remGroupId->variables = $obj->variables;
+                        $obj->data->$remGroupId = [];
+                        $obj->data->$remGroupId[0] = new \stdClass();
+                        $obj->data->$remGroupId[0]->to = [];
+                        $obj->data->$remGroupId[0]->cc = [];
+                        $obj->data->$remGroupId[0]->bcc = [];
+                        $obj->data->$remGroupId[0]->variables = $obj->variables;
                     }
                     $obj->grpFlowActionMap[$remGroupId] = $obj->moduleData->$key;
                 }
