@@ -32,8 +32,8 @@ class RabbitMQLib
 				config('services.rabbitmq.username'),
 				config('services.rabbitmq.password'),
 				'/',
-				['verify_peer_name' => false, 'keep_alive' => true],
-				['heartbeat' => 13],
+				['verify_peer_name' => false],
+				['heartbeat' => 10],
 				'ssl'
 			);
 		}
