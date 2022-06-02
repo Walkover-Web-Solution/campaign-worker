@@ -2,15 +2,14 @@
 
 use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
-use App\Libs\RabbitMQLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\ActionLog;
 use App\Models\CampaignLog;
 use App\Models\Condition;
-use App\Models\Filter;
-use App\Models\FlowAction;
+use App\Models\FailedJob;
 use App\Services\EmailService;
 use App\Services\RcsService;
 use App\Services\SmsService;
@@ -19,7 +18,6 @@ use App\Services\WhatsappService;
 use Carbon\Carbon;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
@@ -386,6 +384,7 @@ function getQueue($channel_id)
 
 function createNewJob($channel_id, $input, $delayTime)
 {
+    $input->failedCount = 0;
     printLog("Inside creating new job.", 2);
     //selecting the queue name as per the flow channel id
     $queue = getQueue($channel_id);
@@ -433,4 +432,37 @@ function countContacts($data)
     })->toArray();
 
     return array_sum($countArr);
+}
+
+function storeFailedJob($exception, $log_id, $queue, $payload)
+{
+    $input = [
+        'connection' => 'rabbitmq',
+        'uuid' => $payload['uuid'],
+        'queue' => $queue,
+        'payload' => $payload,
+        'exception' => $exception,
+        'failed_at' => Carbon::now(),
+        'log_id' => $log_id
+    ];
+
+    $failedJob = FailedJob::create($input);
+
+    // Add queues seperately - TASK
+    switch ($queue) {
+        case "1k_data_queue": {
+                $campaignLog = CampaignLog::where('id', $log_id)->first();
+                $campaignLog->status = 'Failed -' . $failedJob->id;
+                $campaignLog->save();
+                break;
+            }
+        default: {
+                $actionLog = ActionLog::where('id', $log_id)->first();
+                $actionLog->status = 'Failed';
+                $actionLog->response = [
+                    "data" => $failedJob->id
+                ];
+                $actionLog->save();
+            }
+    }
 }

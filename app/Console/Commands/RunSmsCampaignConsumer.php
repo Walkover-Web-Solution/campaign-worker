@@ -55,6 +55,7 @@ class RunSmsCampaignConsumer extends Command
             // printLog("Decoding data from job ", 1, (array)$message);
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
+            $failedCount = unserialize($obj)->data->failedCount;
             $action_log_id = unserialize($obj)->data->action_log_id;
             // $action_log_id = $message['action_log_id'];
             $channelService = new ChannelService();
@@ -68,9 +69,16 @@ class RunSmsCampaignConsumer extends Command
             logTest("failed job sms", $logData);
             printLog("Found exception in run sms ", 5,  $logData);
 
+            if ($failedCount > 3) {
+                // Feed into database
+                storeFailedJob($e->getMessage(), $action_log_id, 'run_sms_campaigns', $message);
+                return;
+            }
+
             $this->rabbitmq = RabbitMQLib::getInstance();
             $this->rabbitmq->putInFailedQueue('failed_run_sms_campaigns', $message);
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }
