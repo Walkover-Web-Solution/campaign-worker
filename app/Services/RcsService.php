@@ -37,7 +37,7 @@ class RcsService
     {
         // make template funciton and call using switch with $function
         $template = $flowAction->configurations[0]->template;
-        $customer_variables = $mongo_data['mobiles']->map(function ($item) {
+        $customer_variables = collect($mongo_data['mobiles'])->map(function ($item) {
             return [
                 "customer_number" => $item['mobiles'],
                 "variables" => empty($item['variables']) ? [] : $item['variables']

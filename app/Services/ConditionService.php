@@ -49,7 +49,7 @@ class ConditionService
         $obj = new \stdClass();
         // get mongoData
         $md = json_decode(json_encode($data));
-        $obj->mongoData = $md[0]->data;
+        $obj->mongoData = $md[0]->data->sendTo;
 
         $conditionId = collect($flow->configurations)->firstWhere('name', 'Condition')->value;
         $countries = 1;
@@ -71,7 +71,7 @@ class ConditionService
                         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
                         $filterdata_mongoID = [
                             'requestId' => $reqId,
-                            'data' => $data
+                            'data' => ["sendTo" => $data]
                         ];
                         $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
 
