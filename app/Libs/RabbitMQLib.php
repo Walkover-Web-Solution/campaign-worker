@@ -24,16 +24,15 @@ class RabbitMQLib
 		if (env('APP_ENV') == 'local') {
 			$this->connection = new AMQPStreamConnection(config('services.rabbitmq.host'), config('services.rabbitmq.port'), config('services.rabbitmq.username'), config('services.rabbitmq.password'));
 		} else {
-			// $timeout = 24 * 60 * 60;
-			// $timeout = 0;
+			$timeout = 24 * 60 * 60;
 			$this->connection = new AMQPLazySSLConnection(
 				config('services.rabbitmq.host'),
 				config('services.rabbitmq.port'),
 				config('services.rabbitmq.username'),
 				config('services.rabbitmq.password'),
 				'/',
-				['verify_peer_name' => false, 'keep_alive' => true],
-				['heartbeat' => 13],
+				['verify_peer_name' => false, "keepalive" => true],
+				['heartbeat' => 10, 'connection_timeout' => $timeout, 'read_write_timeout' => $timeout],
 				'ssl'
 			);
 		}
