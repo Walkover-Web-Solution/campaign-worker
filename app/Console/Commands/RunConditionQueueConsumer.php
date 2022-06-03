@@ -41,6 +41,7 @@ class runConditionQueueConsumer extends Command
             // printLog("Decoding data from job ", 1, (array)$message);
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
+            $failedCount = unserialize($obj)->data->failedCount;
             $action_log_id = unserialize($obj)->data->action_log_id;
             // $action_log_id=$message['action_log_id'];
             $channelService = new ConditionService();
@@ -52,11 +53,18 @@ class runConditionQueueConsumer extends Command
                 "stack" => $e->getTrace()
             ];
             logTest("failed job consition", $logData);
-            printLog("Found exception in run sms ", 5,  $logData);
+            printLog("Found exception in run condition ", 1,  $logData);
+
+            if ($failedCount > 3) {
+                // Feed into database
+                storeFailedJob($e->getMessage(), $action_log_id, 'condition_queue', $message);
+                return;
+            }
 
             $this->rabbitmq = RabbitMQLib::getInstance();
             $this->rabbitmq->putInFailedQueue('failed_condition_queue', $message);
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }

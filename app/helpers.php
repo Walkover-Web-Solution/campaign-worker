@@ -2,15 +2,14 @@
 
 use App\Jobs\RabbitMQJob;
 use App\Libs\EmailLib;
-use App\Libs\RabbitMQLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
 use App\Libs\WhatsAppLib;
+use App\Models\ActionLog;
 use App\Models\CampaignLog;
 use App\Models\Condition;
-use App\Models\Filter;
-use App\Models\FlowAction;
+use App\Models\FailedJob;
 use App\Services\EmailService;
 use App\Services\RcsService;
 use App\Services\SmsService;
@@ -19,7 +18,6 @@ use App\Services\WhatsappService;
 use Carbon\Carbon;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Ixudra\Curl\Facades\Curl;
 
@@ -116,53 +114,58 @@ function convertBody($md, $campaign)
     $obj->mobileCount = 0;
     $obj->emails = [];
     $obj->mobiles = [];
-    $item = $md[0]->data;
+    $obj->variables = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
-    $variables = [];
-    if (!empty($item->variables))
-        $variables = collect($item->variables)->toArray();
 
-    $obj->hasChannel->map(function ($channel) use ($item, $obj) {
+    $obj->hasChannel->map(function ($channel) use ($obj, $md) {
         $service = setService($channel);
-        switch ($channel) {
-            case 1: {
-                    $to = [];
-                    $cc = [];
-                    $bcc = [];
-                    if (isset($item->to)) {
-                        $to = $service->createRequestBody($item->to);
-                        $to = collect($to)->whereNotNull('email');
-                    }
-                    if (isset($item->cc)) {
-                        $cc = $service->createRequestBody($item->cc);
-                        $cc = collect($cc)->whereNotNull('email');
-                    }
-                    if (isset($item->bcc)) {
-                        $bcc = $service->createRequestBody($item->bcc);
-                        $bcc = collect($bcc)->whereNotNull('email');
-                    }
-                    $obj->emails = [
-                        "to" => $to,
-                        "cc" => $cc,
-                        "bcc" => $bcc,
-                    ];
+        collect($md)->map(function ($item) use ($obj, $service, $channel) {
+            switch ($channel) {
+                case 1: {
+                        if (!empty($item->variables))
+                            $obj->variables = collect($item->variables)->toArray();
 
-                    $obj->emailCount = count($to) + count($cc) + count($bcc);
-                }
-                break;
-            case 6: // for condition flowAciton
-                break;
-            default: {
-                    $obj->mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles');
-                    $obj->mobileCount = count($obj->mobiles);
-                }
-                break;
-        }
+                        $to = [];
+                        $cc = [];
+                        $bcc = [];
+                        if (isset($item->to)) {
+                            $to = $service->createRequestBody($item->to);
+                            $to = collect($to)->whereNotNull('email')->toArray();
+                        }
+                        if (isset($item->cc)) {
+                            $cc = $service->createRequestBody($item->cc);
+                            $cc = collect($cc)->whereNotNull('email')->toArray();
+                        }
+                        if (isset($item->bcc)) {
+                            $bcc = $service->createRequestBody($item->bcc);
+                            $bcc = collect($bcc)->whereNotNull('email')->toArray();
+                        }
+                        $emails = [
+                            "to" => $to,
+                            "cc" => $cc,
+                            "bcc" => $bcc,
+                            "variables" => $obj->variables
+                        ];
+                        $obj->emailCount += count($to) + count($cc) + count($bcc);
+                        array_push($obj->emails, $emails);
+                    }
+                    break;
+                case 6: // for condition flowAciton
+                    break;
+                default: {
+                        $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
+                        $obj->mobiles = array_merge($obj->mobiles, $mobiles);
+                        $obj->mobileCount += count($obj->mobiles);
+                    }
+                    break;
+            }
+        });
     });
+
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
-        "variables" => $variables
+        "variables" => $obj->variables
     ];
     return $data;
 }
@@ -233,7 +236,8 @@ function setService($channel)
  */
 function printLog($message, $log = 1, $data = null)
 {
-    if ($log == 5 || str_starts_with($message, "======")) {
+    // if ($log == 5 || str_starts_with($message, "======")) {
+    if (true) {
         // return;
         switch ($log) {
             case 1: {
@@ -277,35 +281,42 @@ function printLog($message, $log = 1, $data = null)
 
 function getFilteredData($obj)
 {
-    //obj have mongoData, moduleData, data(required filteredData)
+    $obj->i = 0;
     $obj->keys = [];
     $obj->grpFlowActionMap = [];
-    $obj->variables = $obj->mongoData->variables;
-    collect($obj->mongoData)->map(function ($contacts, $field) use ($obj) {
-        if ($field != 'variables') {
-            collect($contacts)->map(function ($contact) use ($obj, $field) {
-                if (!empty($contact->mobiles)) {
-                    $countryCode = getCountryCode($contact->mobiles);
-                    $key = 'op_' . $countryCode;
-                    if (!empty($obj->moduleData->$key)) {
-                        $grpKey = $key . '_grp_id';
-                        if (!empty($obj->moduleData->$grpKey)) {
-                            $grpId = $obj->moduleData->$grpKey;
-                            if (empty($obj->data->$grpId)) {
-                                array_push($obj->keys, $grpId);
-                                $obj->data->$grpId = new \stdClass();
-                                $obj->data->$grpId->to = [];
-                                $obj->data->$grpId->cc = [];
-                                $obj->data->$grpId->bcc = [];
-                                $obj->data->$grpId->variables = $obj->variables;
-                                $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+    collect($obj->mongoData)->map(function ($item) use ($obj) {
+        //obj have mongoData, moduleData, data(required filteredData)
+        $obj->variables = empty($item->variables) ? [] : $item->variables;
+        collect($item)->map(function ($contacts, $field) use ($obj) {
+            if ($field != 'variables') {
+                collect($contacts)->map(function ($contact) use ($obj, $field) {
+                    if (!empty($contact->mobiles)) {
+                        $countryCode = getCountryCode($contact->mobiles);
+                        $key = 'op_' . $countryCode;
+                        if (!empty($obj->moduleData->$key)) {
+                            $grpKey = $key . '_grp_id';
+                            if (!empty($obj->moduleData->$grpKey)) {
+                                $grpId = $obj->moduleData->$grpKey;
+                                if (empty($obj->data->$grpId)) {
+                                    array_push($obj->keys, $grpId);
+                                    $obj->data->$grpId = [];
+                                    $obj->grpFlowActionMap[$grpId] = $obj->moduleData->$key;
+                                }
+                                if (empty($obj->data->$grpId[$obj->i])) {
+                                    $obj->data->$grpId[$obj->i] = new \stdClass();
+                                    $obj->data->$grpId[$obj->i]->to = [];
+                                    $obj->data->$grpId[$obj->i]->cc = [];
+                                    $obj->data->$grpId[$obj->i]->bcc = [];
+                                    $obj->data->$grpId[$obj->i]->variables = $obj->variables;
+                                }
+                                array_push($obj->data->$grpId[$obj->i]->$field, $contact);
                             }
-                            array_push($obj->data->$grpId->$field, $contact);
                         }
                     }
-                }
-            });
-        }
+                });
+            }
+        });
+        $obj->i++;
     });
     return $obj;
 }
@@ -323,11 +334,12 @@ function getFilteredDatawithRemainingGroups($obj)
                 if (!empty($obj->moduleData->$key)) {
                     // initializing for the first time
                     if (empty($obj->data->$remGroupId)) {
-                        $obj->data->$remGroupId = new \stdClass();
-                        $obj->data->$remGroupId->to = [];
-                        $obj->data->$remGroupId->cc = [];
-                        $obj->data->$remGroupId->bcc = [];
-                        $obj->data->$remGroupId->variables = $obj->variables;
+                        $obj->data->$remGroupId = [];
+                        $obj->data->$remGroupId[0] = new \stdClass();
+                        $obj->data->$remGroupId[0]->to = [];
+                        $obj->data->$remGroupId[0]->cc = [];
+                        $obj->data->$remGroupId[0]->bcc = [];
+                        $obj->data->$remGroupId[0]->variables = $obj->variables;
                     }
                     $obj->grpFlowActionMap[$remGroupId] = $obj->moduleData->$key;
                 }
@@ -372,6 +384,7 @@ function getQueue($channel_id)
 
 function createNewJob($channel_id, $input, $delayTime)
 {
+    $input->failedCount = 0;
     printLog("Inside creating new job.", 2);
     //selecting the queue name as per the flow channel id
     $queue = getQueue($channel_id);
@@ -410,4 +423,77 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         }
     });
     return $obj->variables;
+}
+
+function countContacts($data)
+{
+    $countArr = collect($data)->map(function ($contacts) {
+        return collect($contacts)->whereNotNull('mobiles')->count();
+    })->toArray();
+
+    return array_sum($countArr);
+}
+
+function storeFailedJob($exception, $log_id, $queue, $payload)
+{
+    $input = [
+        'connection' => 'rabbitmq',
+        'uuid' => $payload['uuid'],
+        'queue' => $queue,
+        'payload' => $payload,
+        'exception' => $exception,
+        'failed_at' => Carbon::now(),
+        'log_id' => $log_id
+    ];
+
+    $failedJob = FailedJob::create($input);
+
+    switch ($queue) {
+        case "1k_data_queue": {
+                updateCampaignLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_email_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_sms_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_rcs_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_voice_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_whastapp_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "condition_queue": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        default: {
+                //
+            }
+    }
+}
+function updateCampaignLog($log_id, $failedJobId)
+{
+    $campaignLog = CampaignLog::where('id', $log_id)->first();
+    $campaignLog->status = 'Failed -' . $failedJobId;
+    $campaignLog->save();
+}
+function updateActionLog($log_id, $failedJobId)
+{
+    $actionLog = ActionLog::where('id', $log_id)->first();
+    $actionLog->status = 'Failed';
+    $actionLog->response = [
+        "data" => $failedJobId
+    ];
+    $actionLog->save();
 }

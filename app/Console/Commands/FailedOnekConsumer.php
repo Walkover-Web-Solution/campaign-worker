@@ -6,14 +6,14 @@ use App\Jobs\RabbitMQJob;
 use App\Libs\RabbitMQLib;
 use Illuminate\Console\Command;
 
-class FailedJobConsumer extends Command
+class FailedOnekConsumer extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'enqueue:failedJobs';
+    protected $signature = 'enqueue:failedOnek';
 
     /**
      * The console command description.
@@ -39,13 +39,18 @@ class FailedJobConsumer extends Command
 
     public function decodedData($msg)
     {
-        printLog("=============== We are in docodedData ===================", 2);
+        printLog("=============== We are in docodedData of Failed Job Consumer ===================", 2);
         try {
             $message = json_decode($msg->getBody(), true);
+            if (empty($message['data'])) {
+                return;
+            }
             $obj = $message['data']['command'];
+            $failedCount = ++unserialize($obj)->data->failedCount;
             $campLogId = unserialize($obj)->data->campaignLogId;
             $input = new \stdClass();
             $input->campaignLogId = $campLogId;
+            $input->failedCount = $failedCount;
             RabbitMQJob::dispatch($input)->onQueue($this->queue);
         } catch (\Exception $e) {
             $logData = [
@@ -56,9 +61,12 @@ class FailedJobConsumer extends Command
             logTest("failed job " . $this->queue, $logData);
             printLog("Exception in " . $this->queue, 1, $logData);
 
-            $this->rabbitmq = RabbitMQLib::getInstance();
-            $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+            // Feed into database
+            storeFailedJob('FAILED - ' . $e->getMessage(), $campLogId, $this->queue, $message);
+            // $this->rabbitmq = RabbitMQLib::getInstance();
+            // $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }
