@@ -8,6 +8,7 @@ use App\Models\Campaign;
 use App\Models\ChannelType;
 use App\Models\FlowAction;
 use Carbon\Carbon;
+use stdClass;
 
 /**
  * Class ChannelService
@@ -42,7 +43,7 @@ class ChannelService
             return;
         }
 
-        
+
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
@@ -63,12 +64,13 @@ class ChannelService
             'requestId' => $action_log->mongo_id
         ]);
         $md = json_decode(json_encode($data));
+
         /**
          * generating the request body data according to flow channel id
          */
 
         printLog("converting the contact body data to required context.", 2);
-        $convertedData = convertBody($md, $campaign);
+        $convertedData = convertBody($md[0]->data->sendTo, $campaign);
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
@@ -137,12 +139,12 @@ class ChannelService
     }
 
 
-    public function getRequestBody($flow, $md, $action_log)
+    public function getRequestBody($flow, $convertedData, $action_log)
     {
         /**
          * extracting the all the variables from the mongo data
          */
-        $var = $md['variables'];
+        $var = $convertedData['variables'];
         $obj = new \stdClass();
         $obj->count = 0;
         // get template of this flowAction
@@ -155,51 +157,58 @@ class ChannelService
             }
         });
         $variables = array_filter($variables->toArray());
-
         $data = [];
-        $mongo_data = $md;
+        $mongo_data = $convertedData;
+
         $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
-                $cc = [];
-                $bcc = [];
                 $obj->values = [];
                 collect($flow["configurations"])->map(function ($item) use ($obj) {
                     if ($item->name != 'template')
                         $obj->values[$item->name] = $item->value;
                 });
-                if (!empty($mongo_data['emails']['cc'])) {
-                    $cc = $mongo_data['emails']['cc'];
-                } else if (!empty($obj->values['cc'])) {
-                    $cc = stringToJson($obj->values['cc']);
-                }
-                if (!empty($mongo_data['emails']['bcc'])) {
-                    $bcc = $mongo_data['emails']['bcc'];
-                } else if (!empty($obj->values['bcc'])) {
-                    $bcc = stringToJson($obj->values['bcc']);
-                }
+                $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $variables) {
+                    $cc = [];
+                    $bcc = [];
+
+                    if (!empty($md['cc'])) {
+                        $cc = $md['cc'];
+                    } else if (!empty($obj->values['cc'])) {
+                        $cc = stringToJson($obj->values['cc']);
+                    }
+                    if (!empty($md['bcc'])) {
+                        $bcc = $md['bcc'];
+                    } else if (!empty($obj->values['bcc'])) {
+                        $bcc = stringToJson($obj->values['bcc']);
+                    }
+                    $to = $md['to'];
+                    $obj->count += count($to);
+                    if (!empty($cc))
+                        $obj->count += count($cc);
+                    if (!empty($bcc))
+                        $obj->count += count($bcc);
+
+                    //filter out variables of this flowActions template
+                    $variables = array_intersect($variables, $md['variables']);
+
+                    $data = array(
+                        "to" => $md['to'],
+                        "cc" => $cc,
+                        "bcc" => $bcc,
+                        "variables" => $variables
+                    );
+                    return $data;
+                })->toArray();
+
                 $domain = empty($obj->values['domain']) ? $obj->values['parent_domain'] : $obj->values['domain'];
                 $email = $obj->values['from_email'] . "@" . $domain;
                 $from = [
                     "name" => $obj->values['from_email_name'],
                     "email" => $email
                 ];
-                $to = $mongo_data['emails']['to'];
-                $obj->count = count($to);
-                if (!empty($cc))
-                    $obj->count += count($cc);
-                if (!empty($bcc))
-                    $obj->count += count($bcc);
-
                 $data = array(
-                    "recipients" => array(
-                        [
-                            "to" => $mongo_data['emails']['to'],
-                            "cc" => $cc,
-                            "bcc" => $bcc,
-                            "variables" => json_decode(collect($variables))
-                        ]
-                    ),
+                    "recipients" => $recipients,
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
                     "domain" => $obj->values['parent_domain']
@@ -209,7 +218,7 @@ class ChannelService
             case 2: //For SMS
                 $obj->mobilesArr = [];
 
-                $mongo_data['mobiles']->map(function ($item) use ($obj, $variables, $temp) {
+                collect($mongo_data['mobiles'])->map(function ($item) use ($obj, $variables, $temp) {
                     $smsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
                     $item = array_merge($item, $smsVariables);
                     unset($item['variables']);
@@ -242,6 +251,7 @@ class ChannelService
                 $obj->count = count($mongo_data['mobiles']);
                 break;
         }
+
         $obj->data = json_decode(collect($data));
 
         return $obj;

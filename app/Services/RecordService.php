@@ -56,36 +56,35 @@ class RecordService
         ]);
         $md = json_decode(json_encode($data));
         printLog("Found mongo data.", 2);
-        collect($md[0]->data->sendTo)->map(function ($item) use ($camplog, $flow, $camp) {
-            $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
-            $data = [
-                'requestId' => $reqId,
-                'data' => $item
-            ];
-            $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
-            $actionLogData = [
-                "no_of_records" => $camplog->no_of_contacts,
-                "status" => "pending",
-                "report_status" => "pending",
-                "ref_id" => "",
-                "response" => null,
-                "flow_action_id" => $flow->id,
-                "mongo_id" => $reqId,
-                'campaign_log_id' => $camplog->id
-            ];
-            $actionLog = $camp->actionLogs()->create($actionLogData);
-            $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
-            if (empty($delayTime)) {
-                $delayValue = 0;
-            } else {
-                $delayValue = $delayTime->value;
-            }
-            if (!empty($actionLog)) {
-                $input = new \stdClass();
-                $input->action_log_id =  $actionLog->id;
-                printLog("Now creating new job for next flow action.", 2);
-                createNewJob($flow->channel_id, $input, $delayValue);
-            }
-        });
+        $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
+        $data = [
+            'requestId' => $reqId,
+            'data' => $md[0]->data
+        ];
+        $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
+        printLog("data stiored in mongo and now creating action log", 2);
+        $actionLogData = [
+            "no_of_records" => $camplog->no_of_contacts,
+            "status" => "pending",
+            "report_status" => "pending",
+            "ref_id" => "",
+            "response" => null,
+            "flow_action_id" => $flow->id,
+            "mongo_id" => $reqId,
+            'campaign_log_id' => $camplog->id
+        ];
+        $actionLog = $camp->actionLogs()->create($actionLogData);
+        $delayTime = collect($flow->configurations)->firstWhere('name', 'delay');
+        if (empty($delayTime)) {
+            $delayValue = 0;
+        } else {
+            $delayValue = $delayTime->value;
+        }
+        if (!empty($actionLog)) {
+            $input = new \stdClass();
+            $input->action_log_id =  $actionLog->id;
+            printLog("Now creating new job for next flow action.", 2);
+            createNewJob($flow->channel_id, $input, $delayValue);
+        }
     }
 }

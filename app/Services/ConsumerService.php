@@ -20,14 +20,11 @@ class ConsumerService
         try {
             $message = json_decode($msg->getBody(), true);
             if (empty($message['data'])) {
-                $msg->ack();
                 return;
             }
             $obj = $message['data']['command'];
+            $failedCount = ++unserialize($obj)->data->failedCount;
             $actionLogId = unserialize($obj)->data->action_log_id;
-            if (empty($actionLogId)) {
-                //
-            }
             $input = new \stdClass();
             $input->action_log_id = $actionLogId;
             RabbitMQJob::dispatch($input)->onQueue($this->queue);
@@ -40,9 +37,15 @@ class ConsumerService
             logTest("failed job 1k", $logData);
             printLog("Exception in onek", 1, $logData);
 
-            $this->rabbitmq = RabbitMQLib::getInstance();
-            $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+
+            // Feed into database
+            storeFailedJob('FAILED - ' . $e->getMessage(), $actionLogId, $this->queue, $message);
+            return;
+
+            // $this->rabbitmq = RabbitMQLib::getInstance();
+            // $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }

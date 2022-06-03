@@ -51,6 +51,7 @@ class onekRunConsume extends Command
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
+            $failedCount = unserialize($obj)->data->failedCount;
             $campLogId = unserialize($obj)->data->campaignLogId;
             $recordService = new RecordService();
             $recordService->executeFlowAction($campLogId);
@@ -64,10 +65,17 @@ class onekRunConsume extends Command
             logTest("failed job 1k", $logData);
             printLog("Exception in onek", 1, $logData);
 
+            if ($failedCount > 3) {
+                // Feed into database
+                storeFailedJob($e->getMessage(), $campLogId, '1k_data_queue', $message);
+                return;
+            }
+
             $this->rabbitmq = RabbitMQLib::getInstance();
 
             $this->rabbitmq->putInFailedQueue('failed_1k_data_queue', $message);
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }
