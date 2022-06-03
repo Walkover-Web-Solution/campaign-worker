@@ -448,21 +448,52 @@ function storeFailedJob($exception, $log_id, $queue, $payload)
 
     $failedJob = FailedJob::create($input);
 
-    // Add queues seperately - TASK
     switch ($queue) {
         case "1k_data_queue": {
-                $campaignLog = CampaignLog::where('id', $log_id)->first();
-                $campaignLog->status = 'Failed -' . $failedJob->id;
-                $campaignLog->save();
+                updateCampaignLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_email_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_sms_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_rcs_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_voice_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "run_whastapp_campaigns": {
+                updateActionLog($log_id, $failedJob->id);
+                break;
+            }
+        case "condition_queue": {
+                updateActionLog($log_id, $failedJob->id);
                 break;
             }
         default: {
-                $actionLog = ActionLog::where('id', $log_id)->first();
-                $actionLog->status = 'Failed';
-                $actionLog->response = [
-                    "data" => $failedJob->id
-                ];
-                $actionLog->save();
+                //
             }
     }
+}
+function updateCampaignLog($log_id, $failedJobId)
+{
+    $campaignLog = CampaignLog::where('id', $log_id)->first();
+    $campaignLog->status = 'Failed -' . $failedJobId;
+    $campaignLog->save();
+}
+function updateActionLog($log_id, $failedJobId)
+{
+    $actionLog = ActionLog::where('id', $log_id)->first();
+    $actionLog->status = 'Failed';
+    $actionLog->response = [
+        "data" => $failedJobId
+    ];
+    $actionLog->save();
 }
