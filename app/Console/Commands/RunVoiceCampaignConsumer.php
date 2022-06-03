@@ -52,15 +52,23 @@ class RunVoiceCampaignConsumer extends Command
         try {
             $message = json_decode($msg->getBody(), true);
             $obj = $message['data']['command'];
+            $failedCount = unserialize($obj)->data->failedCount;
             $action_log_id = unserialize($obj)->data->action_log_id;
             $obj = new ChannelService();
 
             $obj->sendData($action_log_id);
         } catch (\Exception $e) {
 
+            if ($failedCount > 3) {
+                // Feed into database
+                storeFailedJob($e->getMessage(), $action_log_id, 'run_voice_campaigns', $message);
+                return;
+            }
+
             $this->rabbitmq = RabbitMQLib::getInstance();
             $this->rabbitmq->putInFailedQueue('failed_run_voice_campaigns', $message);
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }

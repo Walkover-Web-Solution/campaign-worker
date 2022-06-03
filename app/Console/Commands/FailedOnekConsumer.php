@@ -43,13 +43,14 @@ class FailedOnekConsumer extends Command
         try {
             $message = json_decode($msg->getBody(), true);
             if (empty($message['data'])) {
-                $msg->ack();
                 return;
             }
             $obj = $message['data']['command'];
+            $failedCount = ++unserialize($obj)->data->failedCount;
             $campLogId = unserialize($obj)->data->campaignLogId;
             $input = new \stdClass();
             $input->campaignLogId = $campLogId;
+            $input->failedCount = $failedCount;
             RabbitMQJob::dispatch($input)->onQueue($this->queue);
         } catch (\Exception $e) {
             $logData = [
@@ -60,9 +61,12 @@ class FailedOnekConsumer extends Command
             logTest("failed job " . $this->queue, $logData);
             printLog("Exception in " . $this->queue, 1, $logData);
 
-            $this->rabbitmq = RabbitMQLib::getInstance();
-            $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+            // Feed into database
+            storeFailedJob('FAILED - ' . $e->getMessage(), $campLogId, $this->queue, $message);
+            // $this->rabbitmq = RabbitMQLib::getInstance();
+            // $this->rabbitmq->putInFailedQueue('failed_' . $this->queue, $msg->getBody());
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }

@@ -37,6 +37,7 @@ class ProcessEventConsumer extends Command
     }
     public function decodedData($msg)
     {
+        //Handle Failed here - TASK
         try {
             printLog("======== Found job in event_processing queue ========", 2);
             $message = json_decode($msg->getBody(), true);
@@ -56,7 +57,8 @@ class ProcessEventConsumer extends Command
                 $this->rabbitmq = new RabbitMQLib;
             }
             $this->rabbitmq->putInFailedQueue('failed_event_processing', $msg->getBody());
+        } finally {
+            $msg->ack();
         }
-        $msg->ack();
     }
 }
