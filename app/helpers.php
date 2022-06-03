@@ -283,7 +283,7 @@ function getFilteredData($obj)
     $obj->grpFlowActionMap = [];
     collect($obj->mongoData)->map(function ($item) use ($obj) {
         //obj have mongoData, moduleData, data(required filteredData)
-        $obj->variables = $item->variables;
+        $obj->variables = empty($item->variables) ? [] : $item->variables;
         collect($item)->map(function ($contacts, $field) use ($obj) {
             if ($field != 'variables') {
                 collect($contacts)->map(function ($contact) use ($obj, $field) {
