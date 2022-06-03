@@ -43,7 +43,6 @@ class runConditionQueueConsumer extends Command
             $obj = $message['data']['command'];
             $failedCount = unserialize($obj)->data->failedCount;
             $action_log_id = unserialize($obj)->data->action_log_id;
-            throw new \Exception('h');
             // $action_log_id=$message['action_log_id'];
             $channelService = new ConditionService();
             $channelService->handleCondition($action_log_id);

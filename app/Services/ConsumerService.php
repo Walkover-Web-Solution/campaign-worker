@@ -25,7 +25,6 @@ class ConsumerService
             $obj = $message['data']['command'];
             $failedCount = ++unserialize($obj)->data->failedCount;
             $actionLogId = unserialize($obj)->data->action_log_id;
-            throw new \Exception('h');
             $input = new \stdClass();
             $input->action_log_id = $actionLogId;
             RabbitMQJob::dispatch($input)->onQueue($this->queue);
