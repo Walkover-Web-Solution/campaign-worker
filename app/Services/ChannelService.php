@@ -141,10 +141,12 @@ class ChannelService
          * extracting the all the variables from the mongo data
          */
         $var = $convertedData['variables'];
+        $camp_var = $convertedData['campaign_variables'];
         $obj = new \stdClass();
         $obj->count = 0;
         // get template of this flowAction
         $temp = $flow->template;
+        $campaign_variables = $flow->campaign_variables()->pluck('name')->toArray();
 
         //filter out variables of this flowActions template
         $variables = collect($var)->map(function ($value, $key) use ($temp) {
@@ -152,7 +154,15 @@ class ChannelService
                 return $value;
             }
         });
+        //filter out variables of this flowActions template
+        $campaign_variables = collect($camp_var)->map(function ($value, $key) use ($campaign_variables) {
+            if (in_array($key, $campaign_variables)) {
+                return $value;
+            }
+        });
         $variables = array_filter($variables->toArray());
+        $campaign_variables = array_filter($campaign_variables->toArray());
+        dd($campaign_variables);
         $data = [];
         $mongo_data = $convertedData;
 
@@ -207,7 +217,8 @@ class ChannelService
                     "recipients" => $recipients,
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
-                    "domain" => $obj->values['parent_domain']
+                    "domain" => $obj->values['parent_domain'],
+                    // "attachments" =>
                 );
                 printLog("GET REQUEST BODY", 1, $data);
                 break;

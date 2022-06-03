@@ -115,6 +115,7 @@ function convertBody($md, $campaign)
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
+    $obj->campaign_variables = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
 
     $obj->hasChannel->map(function ($channel) use ($obj, $md) {
@@ -124,6 +125,8 @@ function convertBody($md, $campaign)
                 case 1: {
                         if (!empty($item->variables))
                             $obj->variables = collect($item->variables)->toArray();
+                        if (!empty($item->campaign_variables))
+                            $obj->campaign_variables = collect($item->campaign_variables)->toArray();
 
                         $to = [];
                         $cc = [];
@@ -144,7 +147,8 @@ function convertBody($md, $campaign)
                             "to" => $to,
                             "cc" => $cc,
                             "bcc" => $bcc,
-                            "variables" => $obj->variables
+                            "variables" => $obj->variables,
+                            "campaign_variables" => $obj->campaign_variables
                         ];
                         $obj->emailCount += count($to) + count($cc) + count($bcc);
                         array_push($obj->emails, $emails);
@@ -288,7 +292,7 @@ function getFilteredData($obj)
         //obj have mongoData, moduleData, data(required filteredData)
         $obj->variables = empty($item->variables) ? [] : $item->variables;
         collect($item)->map(function ($contacts, $field) use ($obj) {
-            if ($field != 'variables') {
+            if (!($field == 'variables' || $field == 'campaign_variables')) {
                 collect($contacts)->map(function ($contact) use ($obj, $field) {
                     if (!empty($contact->mobiles)) {
                         $countryCode = getCountryCode($contact->mobiles);

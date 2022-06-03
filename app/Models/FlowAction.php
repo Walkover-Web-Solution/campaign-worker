@@ -64,4 +64,9 @@ class FlowAction extends Model
     {
         return $this->morphTo();
     }
+
+    public function campaign_variables()
+    {
+        return $this->belongsToMany(Variable::class);
+    }
 }
