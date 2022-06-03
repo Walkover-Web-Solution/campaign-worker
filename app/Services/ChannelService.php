@@ -124,7 +124,8 @@ class ChannelService
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
-            createNewJob($nextFlowAction->channel_id, $input, $delayValue);
+            $queue = getQueue($nextFlowAction->channel_id);
+            createNewJob($input, $queue, $delayValue);
         } else {
             // Call cron to set campaignLog Complete
             updateCampaignLogStatus($campaignLog);

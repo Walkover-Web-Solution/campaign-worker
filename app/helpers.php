@@ -382,18 +382,11 @@ function getQueue($channel_id)
     }
 }
 
-function createNewJob($channel_id, $input, $delayTime)
+function createNewJob($input, $queue, $delayTime = 0)
 {
-    $input->failedCount = 0;
+    if (empty($input->failedCount))
+        $input->failedCount = 0;
     printLog("Inside creating new job.", 2);
-    //selecting the queue name as per the flow channel id
-    $queue = getQueue($channel_id);
-    //   printLog('Rabbitmq lib we found '.$this->rabbitmq->connection_status, 1);
-    printLog("Here to dispatch job.", 2);
-    // if (empty($rabbitmq)) {
-    //     $rabbitmq = new RabbitMQLib;
-    // }
-    // $rabbitmq->enqueue($queue, $input);
     if (env('APP_ENV') == 'local') {
         $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
         dispatch($job); //dispatching the job
@@ -434,11 +427,11 @@ function countContacts($data)
     return array_sum($countArr);
 }
 
-function storeFailedJob($exception, $log_id, $queue, $payload)
+function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
 {
     $input = [
-        'connection' => 'rabbitmq',
-        'uuid' => $payload['uuid'],
+        'connection' => $connection,
+        'uuid' => $log_id,
         'queue' => $queue,
         'payload' => $payload,
         'exception' => $exception,

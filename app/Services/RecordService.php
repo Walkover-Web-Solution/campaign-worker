@@ -84,7 +84,8 @@ class RecordService
             $input = new \stdClass();
             $input->action_log_id =  $actionLog->id;
             printLog("Now creating new job for next flow action.", 2);
-            createNewJob($flow->channel_id, $input, $delayValue);
+            $queue = getQueue($flow->channel_id);
+            createNewJob($input, $queue, $delayValue);
         }
     }
 }
