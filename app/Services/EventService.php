@@ -92,33 +92,46 @@ class EventService
         $obj->data['unread'] = [];
 
         collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
-            collect($mongo_data->data)->map(function ($contacts, $field) use ($obj, $item, $channel_id) {
-                if ($channel_id == 1) {
-                    $contact = (array)collect($contacts)->firstWhere('email', $item->email);
-                } else {
-                    $contact = (array)collect($contacts)->firstWhere('mobiles', $item->mobile);
-                }
-                // Add all events in condition which are recieved from microservices
-                if (!empty($contact)) {
-                    $event = strtolower($item->event);
-                    if ($event == 'success') {
-                        if (empty($obj->data['success'][$field]))
-                            $obj->data['success'][$field] = [];
-                        array_push($obj->data['success'][$field], $contact);
-                    } else if ($event == 'failed') {
-                        if (empty($obj->data['failed'][$field]))
-                            $obj->data['failed'][$field] = [];
-                        array_push($obj->data['failed'][$field], $contact);
-                    } else if ($event == 'read') {
-                        if (empty($obj->data['read'][$field]))
-                            $obj->data['read'][$field] = [];
-                        array_push($obj->data['read'][$field], $contact);
-                    } else if ($event == 'unread') {
-                        if (empty($obj->data['unread'][$field]))
-                            $obj->data['unread'][$field] = [];
-                        array_push($obj->data['unread'][$field], $contact);
+            collect($mongo_data->data->sendTo)->map(function ($sendToItem, $key) use ($obj, $item, $channel_id) {
+                collect($sendToItem)->map(function ($contacts, $field) use ($obj, $item, $channel_id, $key) {
+                    if ($field != 'variables') {
+                        if ($channel_id == 1) {
+                            $contact = (array)collect($contacts)->firstWhere('email', $item->email);
+                        } else {
+                            $contact = (array)collect($contacts)->firstWhere('mobiles', $item->mobile);
+                        }
+                        // Add all events in condition which are recieved from microservices
+                        if (!empty($contact)) {
+                            $event = strtolower($item->event);
+                            if ($event == 'success') {
+                                if (empty($obj->data['success'][$key][$field]))
+                                    $obj->data['success'][$key][$field] = [];
+                                array_push($obj->data['success'][$key][$field], $contact);
+                            } else if ($event == 'failed') {
+                                if (empty($obj->data['failed'][$key][$field]))
+                                    $obj->data['failed'][$key][$field] = [];
+                                array_push($obj->data['failed'][$key][$field], $contact);
+                            } else if ($event == 'read') {
+                                if (empty($obj->data['read'][$key][$field]))
+                                    $obj->data['read'][$key][$field] = [];
+                                array_push($obj->data['read'][$key][$field], $contact);
+                            } else if ($event == 'unread') {
+                                if (empty($obj->data['unread'][$key][$field]))
+                                    $obj->data['unread'][$key][$field] = [];
+                                array_push($obj->data['unread'][$key][$field], $contact);
+                            }
+                        }
+                    } else if ($field == 'variables') {
+                        $event = strtolower($item->event);
+                        if (empty($obj->data[$event])) {
+                            return;
+                        }
+                        if (empty($obj->data[$event][$key][$field])) {
+                            $obj->data[$event][$key][$field] = [];
+                        }
+                        $obj->data[$event][$key][$field] = array_merge($obj->data[$event][$key][$field], (array)$contacts);
                     }
-                }
+                });
             });
         });
         return $obj->data;
@@ -129,6 +142,9 @@ class EventService
      */
     public function createNextActionLog($flowAction, $event, $action_log, $filteredData)
     {
+        // As per change in sendTo to make everyobject into one request, FilterData will be send in sendTo key
+        $filteredData = ['sendTo' => array_values($filteredData)];
+
         // generating random key with time stamp for mongo requestId
         $reqId = preg_replace('/\s+/', '', Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
 
