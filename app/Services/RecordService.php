@@ -51,7 +51,7 @@ class RecordService
             $this->mongo = new MongoDBLib;
         }
 
-        printLog("Now fetching for mongo data.", 2);
+        printLog("Now fetching for mongo data for.", 2, ["requestId" => $camplog['mongo_uid']]);
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
