@@ -56,6 +56,18 @@ cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d
 cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/events_processing.conf
 cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/rcs_consumption.conf
 
+# Create queue if not exist
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "1k_data_queue"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "run_sms_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "run_email_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "run_rcs_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "condition_queue"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "event_processing"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_1k_data_queue"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_condition_queue"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_email_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_sms_campaigns"
+
 if ps aux | grep "[/]usr/bin/supervisord"; then
     echo "supervisor is running"
     /usr/bin/supervisorctl stop all
