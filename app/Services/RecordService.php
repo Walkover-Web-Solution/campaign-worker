@@ -8,6 +8,7 @@ use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Arr;
 
 /**
  * Class RecordService
@@ -56,6 +57,7 @@ class RecordService
         ]);
         $md = json_decode(json_encode($data));
         printLog("Found mongo data.", 2);
+        printLog("DATA FROM MONGO IS : ", 1, (array)$md);
         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
         $data = [
             'requestId' => $reqId,
