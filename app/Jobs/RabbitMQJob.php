@@ -62,7 +62,7 @@ class RabbitMQJob implements ShouldQueue
                         $channelService->sendData($log_id);
                         break;
                     }
-                case "events_processing": {
+                case "event_processing": {
                         // $log_id = $msg->action_log_id;
                         // $msg->failedCount++;
                         // createNewJob($msg, "condition_queue");
@@ -134,7 +134,7 @@ class RabbitMQJob implements ShouldQueue
                         createNewJob($msg, "condition_queue");
                         break;
                     }
-                case "failed_events_processing": {
+                case "failed_event_processing": {
                         // $log_id = $msg->action_log_id;
                         // $msg->failedCount++;
                         // createNewJob($msg, "condition_queue");
@@ -157,7 +157,7 @@ class RabbitMQJob implements ShouldQueue
             printLog("Exception in" . $failed_queue, 1, $logData);
 
             if ($failedCount >= 3) {
-                storeFailedJob($e->getMessage(), $log_id, $this->queue, $msg, $this->connection);
+                storeFailedJob($e->__toString(), $log_id, $this->queue, $msg, $this->connection);
                 return;
             }
 
