@@ -50,7 +50,8 @@ class RcsService
             "name" => $template->name,
             "namespace" => $template->template_id,
             "variables" => $variables,
-            "campaign_id" => $action_log->id . '_' . $action_log->mongo_id
+            "campaign_id" => $action_log->id . '_' . $action_log->mongo_id,
+            "node_id" => $action_log->id
         ];
 
         return $data;
