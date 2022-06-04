@@ -120,11 +120,10 @@ function convertBody($md, $campaign)
     $obj->hasChannel->map(function ($channel) use ($obj, $md) {
         $service = setService($channel);
         collect($md)->map(function ($item) use ($obj, $service, $channel) {
+            if (!empty($item->variables))
+                $obj->variables = collect($item->variables)->toArray();
             switch ($channel) {
                 case 1: {
-                        if (!empty($item->variables))
-                            $obj->variables = collect($item->variables)->toArray();
-
                         $to = [];
                         $cc = [];
                         $bcc = [];
