@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Services\ChannelService;
 use App\Services\ConditionService;
+use App\Services\EventService;
 use App\Services\RecordService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -63,9 +64,9 @@ class RabbitMQJob implements ShouldQueue
                         break;
                     }
                 case "event_processing": {
-                        // $log_id = $msg->action_log_id;
-                        // $msg->failedCount++;
-                        // createNewJob($msg, "condition_queue");
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $eventService = new EventService();
+                        $eventService->processEvent($msg->eventMongoId);
                         break;
                     }
                 case "failed_run_email_campaigns": {
@@ -135,9 +136,9 @@ class RabbitMQJob implements ShouldQueue
                         break;
                     }
                 case "failed_event_processing": {
-                        // $log_id = $msg->action_log_id;
-                        // $msg->failedCount++;
-                        // createNewJob($msg, "condition_queue");
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $msg->failedCount++;
+                        createNewJob($msg, "event_processing");
                         break;
                     }
                 default: {
