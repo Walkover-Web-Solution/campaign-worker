@@ -66,7 +66,8 @@ class EventService
                             $input = new \stdClass();
                             $input->action_log_id =  $next_action_log->id;
                             // create job for next_action_log
-                            createNewJob($flowAction->channel_id, $input, $delay);
+                            $queue = getQueue($flowAction->channel_id);
+                            createNewJob($input, $queue, $delay);
                         }
                     }
                 }

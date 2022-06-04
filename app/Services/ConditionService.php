@@ -95,7 +95,8 @@ class ConditionService
                         if (!empty($actionLog)) {
                             $input = new \stdClass();
                             $input->action_log_id =  $actionLog->id;
-                            createNewJob($nextFlowAction->channel_id, $input, $delayTime->value);
+                            $queue = getQueue($nextFlowAction->channel_id);
+                            createNewJob($input, $queue, $delayTime->value);
                         }
                     });
 
