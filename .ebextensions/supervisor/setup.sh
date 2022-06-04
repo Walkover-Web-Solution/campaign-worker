@@ -55,12 +55,12 @@ cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/one
 cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/condition_consumption.conf
 cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/events_processing.conf
 cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/rcs_consumption.conf
-cat .ebextensions/supervisor/email_consumption.conf > /etc/supervisor/conf.d/failed_email_consumption.conf
-cat .ebextensions/supervisor/sms_consumption.conf > /etc/supervisor/conf.d/failed_sms_consumption.conf
-cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/failed_onek_data_process.conf
-cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/failed_condition_consumption.conf
-cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/failed_rcs_consumption.conf
-cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/failed_events_processing.conf
+cat .ebextensions/supervisor/failed_email_consumption.conf > /etc/supervisor/conf.d/failed_email_consumption.conf
+cat .ebextensions/supervisor/failed_sms_consumption.conf > /etc/supervisor/conf.d/failed_sms_consumption.conf
+cat .ebextensions/supervisor/failed_onek_data_process.conf > /etc/supervisor/conf.d/failed_onek_data_process.conf
+cat .ebextensions/supervisor/failed_condition_consumption.conf > /etc/supervisor/conf.d/failed_condition_consumption.conf
+cat .ebextensions/supervisor/failed_rcs_consumption.conf > /etc/supervisor/conf.d/failed_rcs_consumption.conf
+cat .ebextensions/supervisor/failed_events_processing.conf > /etc/supervisor/conf.d/failed_events_processing.conf
 
 # Create queue if not exist
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "1k_data_queue"
