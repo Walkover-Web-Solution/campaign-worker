@@ -8,6 +8,7 @@ use App\Models\CampaignLog;
 use App\Models\FlowAction;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Arr;
 
 /**
  * Class RecordService
@@ -50,12 +51,13 @@ class RecordService
             $this->mongo = new MongoDBLib;
         }
 
-        printLog("Now fetching for mongo data.", 2);
+        printLog("Now fetching for mongo data for.", 2, ["requestId" => $camplog['mongo_uid']]);
         $data = $this->mongo->collection('run_campaign_data')->find([
             'requestId' => $camplog['mongo_uid']
         ]);
         $md = json_decode(json_encode($data));
         printLog("Found mongo data.", 2);
+        printLog("DATA FROM MONGO IS : ", 1, (array)$md);
         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
         $data = [
             'requestId' => $reqId,
@@ -84,7 +86,8 @@ class RecordService
             $input = new \stdClass();
             $input->action_log_id =  $actionLog->id;
             printLog("Now creating new job for next flow action.", 2);
-            createNewJob($flow->channel_id, $input, $delayValue);
+            $queue = getQueue($flow->channel_id);
+            createNewJob($input, $queue, $delayValue);
         }
     }
 }
