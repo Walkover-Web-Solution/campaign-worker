@@ -10,7 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue ;
+use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue;
 
 class RabbitMQJob implements ShouldQueue
 {
@@ -60,6 +60,12 @@ class RabbitMQJob implements ShouldQueue
                         $log_id = $msg->action_log_id;
                         $channelService = new ChannelService();
                         $channelService->sendData($log_id);
+                        break;
+                    }
+                case "events_processing": {
+                        // $log_id = $msg->action_log_id;
+                        // $msg->failedCount++;
+                        // createNewJob($msg, "condition_queue");
                         break;
                     }
                 case "failed_run_email_campaigns": {
@@ -126,6 +132,12 @@ class RabbitMQJob implements ShouldQueue
                         $log_id = $msg->action_log_id;
                         $msg->failedCount++;
                         createNewJob($msg, "condition_queue");
+                        break;
+                    }
+                case "failed_events_processing": {
+                        // $log_id = $msg->action_log_id;
+                        // $msg->failedCount++;
+                        // createNewJob($msg, "condition_queue");
                         break;
                     }
                 default: {

@@ -55,6 +55,12 @@ cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/one
 cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/condition_consumption.conf
 cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/events_processing.conf
 cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/rcs_consumption.conf
+cat .ebextensions/supervisor/email_consumption.conf > /etc/supervisor/conf.d/failed_email_consumption.conf
+cat .ebextensions/supervisor/sms_consumption.conf > /etc/supervisor/conf.d/failed_sms_consumption.conf
+cat .ebextensions/supervisor/onek_data_process.conf > /etc/supervisor/conf.d/failed_onek_data_process.conf
+cat .ebextensions/supervisor/condition_consumption.conf > /etc/supervisor/conf.d/failed_condition_consumption.conf
+cat .ebextensions/supervisor/rcs_consumption.conf > /etc/supervisor/conf.d/failed_rcs_consumption.conf
+cat .ebextensions/supervisor/events_processing.conf > /etc/supervisor/conf.d/failed_events_processing.conf
 
 # Create queue if not exist
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "1k_data_queue"
@@ -67,6 +73,8 @@ sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_1k_dat
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_condition_queue"
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_email_campaigns"
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_sms_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_rcs_campaigns"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_event_processing"
 
 if ps aux | grep "[/]usr/bin/supervisord"; then
     echo "supervisor is running"
