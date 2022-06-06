@@ -160,7 +160,6 @@ class ChannelService
         switch ($flow['channel_id']) {
             case 1: //For Email
                 $obj->values = [];
-                dd($flow['id']);
                 collect($flow["configurations"])->map(function ($item) use ($obj) {
                     if ($item->name != 'template')
                         $obj->values[$item->name] = $item->value;
