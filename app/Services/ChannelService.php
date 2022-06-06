@@ -60,6 +60,9 @@ class ChannelService
         ]);
         $md = json_decode(json_encode($data));
 
+        // Seperate attachments from mongo data
+        $attachments = empty($md[0]->data->attachments) ? [] : $md[0]->data->attachments;
+
         /**
          * generating the request body data according to flow channel id
          */
@@ -69,7 +72,7 @@ class ChannelService
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log);
+        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments);
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -135,7 +138,7 @@ class ChannelService
     }
 
 
-    public function getRequestBody($flow, $convertedData, $action_log)
+    public function getRequestBody($flow, $convertedData, $action_log, $attachments)
     {
         /**
          * extracting the all the variables from the mongo data
@@ -203,11 +206,13 @@ class ChannelService
                     "name" => $obj->values['from_email_name'],
                     "email" => $email
                 ];
+                $attachments = convertAttachments($attachments);
                 $data = array(
                     "recipients" => $recipients,
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
-                    "domain" => $obj->values['parent_domain']
+                    "domain" => $obj->values['parent_domain'],
+                    "attachments" => $attachments
                 );
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
