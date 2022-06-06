@@ -160,6 +160,7 @@ class ChannelService
         switch ($flow['channel_id']) {
             case 1: //For Email
                 $obj->values = [];
+                dd($flow['id']);
                 collect($flow["configurations"])->map(function ($item) use ($obj) {
                     if ($item->name != 'template')
                         $obj->values[$item->name] = $item->value;
@@ -208,7 +209,7 @@ class ChannelService
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
                     "domain" => $obj->values['parent_domain'],
-                    "node_id" => $action_log['id']
+                    "node_id" => $flow['id']
                 );
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
@@ -226,7 +227,7 @@ class ChannelService
                     "flow_id" => $temp->template_id,
                     'recipients' => collect($obj->mobilesArr),
                     "short_url" => true,
-                    "node_id" => $action_log['id']
+                    "node_id" => $flow['id']
                 ];
                 $obj->count = count($mongo_data['mobiles']);
                 break;

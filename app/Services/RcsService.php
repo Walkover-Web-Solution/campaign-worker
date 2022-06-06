@@ -51,7 +51,7 @@ class RcsService
             "namespace" => $template->template_id,
             "variables" => $variables,
             "campaign_id" => $action_log->id . '_' . $action_log->mongo_id,
-            "node_id" => $action_log->id
+            "node_id" => $flowAction->id
         ];
 
         return $data;
