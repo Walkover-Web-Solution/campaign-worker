@@ -169,6 +169,21 @@ function convertBody($md, $campaign)
     return $data;
 }
 
+function convertAttachments($attachments)
+{
+   return collect($attachments)->map(function ($item) {
+        if ($item->fileType == "url") {
+            return [
+                "filePath" => $item->file,
+                "fileName" => $item->fileName
+            ];
+        } else if ($item->fileType == "base64") {
+            unset($item->fileType);
+            return (array)$item;
+        }
+    })->toArray();
+}
+
 function updateCampaignLogStatus(CampaignLog $campaignLog)
 {
     $actionLogs = $campaignLog->actionLogs()->get()->toArray();
