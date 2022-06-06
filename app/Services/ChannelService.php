@@ -207,7 +207,8 @@ class ChannelService
                     "recipients" => $recipients,
                     "from" => json_decode(collect($from)),
                     "template_id" => $temp->template_id,
-                    "domain" => $obj->values['parent_domain']
+                    "domain" => $obj->values['parent_domain'],
+                    "node_id" => $flow['id']
                 );
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
@@ -224,7 +225,8 @@ class ChannelService
                 $data = [
                     "flow_id" => $temp->template_id,
                     'recipients' => collect($obj->mobilesArr),
-                    "short_url" => true
+                    "short_url" => true,
+                    "node_id" => $flow['id']
                 ];
                 $obj->count = count($mongo_data['mobiles']);
                 break;
