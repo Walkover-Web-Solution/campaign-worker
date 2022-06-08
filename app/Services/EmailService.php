@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Libs\MongoDBLib;
+use App\Models\FlowAction;
 use Carbon\Carbon;
 
 /**
@@ -14,7 +15,7 @@ class EmailService
     protected $mongo;
     public function __construct()
     {
-        
+        //
     }
 
     public function createRequestBody($data)
@@ -28,6 +29,63 @@ class EmailService
             );
         })->toArray();
         return $mappedData;
+    }
+
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables, $attachments)
+    {
+        $obj->values = [];
+        collect($flowAction["configurations"])->map(function ($item) use ($obj) {
+            if ($item->name != 'template')
+                $obj->values[$item->name] = $item->value;
+        });
+        $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $variables) {
+            $cc = [];
+            $bcc = [];
+
+            if (!empty($md['cc'])) {
+                $cc = $md['cc'];
+            } else if (!empty($obj->values['cc'])) {
+                $cc = stringToJson($obj->values['cc']);
+            }
+            if (!empty($md['bcc'])) {
+                $bcc = $md['bcc'];
+            } else if (!empty($obj->values['bcc'])) {
+                $bcc = stringToJson($obj->values['bcc']);
+            }
+            $to = $md['to'];
+            $obj->count += count($to);
+            if (!empty($cc))
+                $obj->count += count($cc);
+            if (!empty($bcc))
+                $obj->count += count($bcc);
+
+            //filter out variables of this flowActions template
+            $variables = array_intersect($variables, $md['variables']);
+
+            $data = array(
+                "to" => $md['to'],
+                "cc" => $cc,
+                "bcc" => $bcc,
+                "variables" => $variables
+            );
+            return $data;
+        })->toArray();
+
+        $domain = empty($obj->values['domain']) ? $obj->values['parent_domain'] : $obj->values['domain'];
+        $email = $obj->values['from_email'] . "@" . $domain;
+        $from = [
+            "name" => $obj->values['from_email_name'],
+            "email" => $email
+        ];
+        $attachments = convertAttachments($attachments);
+        return array(
+            "recipients" => $recipients,
+            "from" => json_decode(collect($from)),
+            "template_id" => $flowAction->template->template_id,
+            "domain" => $obj->values['parent_domain'],
+            "attachments" => $attachments,
+            "node_id" => $flowAction['id']
+        );
     }
 
     public function storeReport($res, $actionLog, $collection)
@@ -67,7 +125,7 @@ class EmailService
             $actionLog->report_status = 'done';
         }
 
-        if(empty($this->mongo)){
+        if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib;
         }
 
