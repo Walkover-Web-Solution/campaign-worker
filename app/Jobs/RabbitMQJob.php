@@ -6,6 +6,7 @@ use App\Services\ChannelService;
 use App\Services\ConditionService;
 use App\Services\EventService;
 use App\Services\RecordService;
+use App\Services\SlackService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -156,6 +157,17 @@ class RabbitMQJob implements ShouldQueue
             ];
             logTest($failed_queue, $logData);
             printLog("Exception in" . $failed_queue, 1, $logData);
+
+            // Send error to Slack
+            $slack = new SlackService();
+            $error = array(
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'lineNo' => $e->getLine(),
+                'file' => $e->getFile(),
+                'input' => json_encode($msg)
+            );
+            $slack->sendErrorToSlack((object)$error);
 
             if ($failedCount >= 3) {
                 storeFailedJob($e->__toString(), $log_id, $this->queue, $msg, $this->connection);
