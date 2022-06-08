@@ -48,7 +48,6 @@ class RabbitMQJob implements ShouldQueue
             switch ($this->queue) {
                 case "1k_data_queue": {
                         $log_id = $msg->campaignLogId;
-                        throw new \Exception("Hello there");
                         $recordService = new RecordService();
                         $recordService->executeFlowAction($log_id);
                         break;
