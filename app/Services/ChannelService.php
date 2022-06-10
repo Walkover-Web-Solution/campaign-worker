@@ -62,6 +62,9 @@ class ChannelService
         // Seperate attachments from mongo data
         $attachments = empty($md[0]->data->attachments) ? [] : $md[0]->data->attachments;
 
+        // Seperate reply_to from mongo data
+        $reply_to = empty($md[0]->data->reply_to) ? [] : $md[0]->data->reply_to;
+
         /**
          * generating the request body data according to flow channel id
          */
@@ -71,7 +74,7 @@ class ChannelService
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments);
+        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -137,7 +140,7 @@ class ChannelService
     }
 
 
-    public function getRequestBody($flow, $convertedData, $action_log, $attachments)
+    public function getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to)
     {
         /**
          * extracting the all the variables from the mongo data
@@ -161,7 +164,7 @@ class ChannelService
         $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
-                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments);
+                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments, $reply_to);
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
             case 2: //For SMS

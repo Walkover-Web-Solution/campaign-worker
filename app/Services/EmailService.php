@@ -31,7 +31,7 @@ class EmailService
         return $mappedData;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables, $attachments)
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables, $attachments, $reply_to)
     {
         $obj->values = [];
         collect($flowAction["configurations"])->map(function ($item) use ($obj) {
@@ -84,6 +84,7 @@ class EmailService
             "template_id" => $flowAction->template->template_id,
             "domain" => $obj->values['parent_domain'],
             "attachments" => $attachments,
+            "reply_to" => $reply_to, // Remove array from here when email changed their array to json to accept single reply_to - TASK
             "node_id" => $flowAction['id']
         );
     }
