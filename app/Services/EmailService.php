@@ -84,7 +84,7 @@ class EmailService
             "template_id" => $flowAction->template->template_id,
             "domain" => $obj->values['parent_domain'],
             "attachments" => $attachments,
-            "reply_to" => $reply_to, // Remove array from here when email changed their array to json to accept single reply_to - TASK
+            "reply_to" => $reply_to,
             "node_id" => $flowAction['id']
         );
     }
