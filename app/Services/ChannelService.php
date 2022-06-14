@@ -33,7 +33,13 @@ class ChannelService
         $campaign = $action_log->campaign;
 
         // Return to dequeue this job if Campaign is paused
-        if ($campaignLog->is_paused || $campaignLog->status == 'Stopped') {
+        if ($campaignLog->is_paused) {
+            return;
+        }
+
+        if ($campaignLog->status == 'Stopped') {
+            $action_log->status = 'Stopped';
+            $action_log->save();
             return;
         }
 
