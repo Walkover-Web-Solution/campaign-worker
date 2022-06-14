@@ -123,7 +123,7 @@ class ChannelService
             if (empty($delayTime)) {
                 $delayValue = 0;
             } else {
-                $delayValue = $delayTime->value;
+                $delayValue = getSeconds($delayTime->unit, $delayTime->value);
             }
 
             printLog("Now creating new job for action log.", 1);

@@ -80,7 +80,7 @@ class RecordService
         if (empty($delayTime)) {
             $delayValue = 0;
         } else {
-            $delayValue = $delayTime->value;
+            $delayValue = getSeconds($delayTime->unit, $delayTime->value);
         }
         if (!empty($actionLog)) {
             $input = new \stdClass();

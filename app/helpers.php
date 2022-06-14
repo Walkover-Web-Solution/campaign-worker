@@ -79,6 +79,32 @@ function createJWTToken($input)
     return JWTEncode($jwt);
 }
 
+function getSeconds($unit, $value)
+{
+    $value = (int)$value;
+
+    switch ($unit) {
+        case "seconds": {
+                return $value * 1;
+            }
+        case "minutes": {
+                return $value * 60;
+            }
+            break;
+        case "hours": {
+                return $value * 60 * 60;
+            }
+            break;
+        case "days": {
+                return $value * 24 * 60 * 60;
+            }
+            break;
+        default: {
+                return 0;
+            }
+    }
+}
+
 function logTest($message, $data)
 {
     $logData = [
@@ -171,7 +197,7 @@ function convertBody($md, $campaign)
 
 function convertAttachments($attachments)
 {
-   return collect($attachments)->map(function ($item) {
+    return collect($attachments)->map(function ($item) {
         if ($item->fileType == "url") {
             return [
                 "filePath" => $item->file,
@@ -402,12 +428,12 @@ function createNewJob($input, $queue, $delayTime = 0)
         $input->failedCount = 0;
     printLog("Inside creating new job.", 2);
     if (env('APP_ENV') == 'local') {
-        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime))->onConnection('rabbitmqlocal');
         dispatch($job); //dispatching the job
     } else {
         // $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
         // dispatch($job);
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime));
     }
     printLog("Successfully created new job.", 2);
 }

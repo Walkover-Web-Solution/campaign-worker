@@ -92,11 +92,12 @@ class ConditionService
 
                         // adding delay time with job
                         $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+                        $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         if (!empty($actionLog)) {
                             $input = new \stdClass();
                             $input->action_log_id =  $actionLog->id;
                             $queue = getQueue($nextFlowAction->channel_id);
-                            createNewJob($input, $queue, $delayTime->value);
+                            createNewJob($input, $queue, $delayValue);
                         }
                     });
 
