@@ -30,6 +30,12 @@ class ConditionService
             return;
         }
 
+        if ($campaignLog->status == 'Stopped') {
+            $action_log->status = 'Stopped';
+            $action_log->save();
+            return;
+        }
+
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
         if (empty($flow)) {
             printLog("No flow actions found.", 5);

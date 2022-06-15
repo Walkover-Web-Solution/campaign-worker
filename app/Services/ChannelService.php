@@ -37,6 +37,12 @@ class ChannelService
             return;
         }
 
+        if ($campaignLog->status == 'Stopped') {
+            $action_log->status = 'Stopped';
+            $action_log->save();
+            return;
+        }
+
 
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
