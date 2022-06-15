@@ -92,11 +92,11 @@ function getSeconds($unit, $value)
             }
             break;
         case "hours": {
-                return $value * 60 * 60;
+                return $value * 3600;
             }
             break;
         case "days": {
-                return $value * 24 * 60 * 60;
+                return $value * 86400;
             }
             break;
         default: {
