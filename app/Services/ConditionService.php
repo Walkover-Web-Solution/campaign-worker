@@ -71,7 +71,7 @@ class ConditionService
                     $obj = getFilteredDatawithRemainingGroups($obj);
 
                     // create jobs for next actionLogs according to groups
-                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log) {
+                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog) {
                         $nextFlowAction = FlowAction::where('id', $obj->grpFlowActionMap[$grpId])->first();
 
                         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
@@ -102,6 +102,8 @@ class ConditionService
                         if (!empty($actionLog)) {
                             $input = new \stdClass();
                             $input->action_log_id =  $actionLog->id;
+                            if ($campaignLog->is_paused)
+                                $delayValue = 0;
                             $queue = getQueue($nextFlowAction->channel_id);
                             createNewJob($input, $queue, $delayValue);
                         }
