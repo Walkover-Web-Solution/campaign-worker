@@ -136,6 +136,8 @@ class ChannelService
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $queue = getQueue($nextFlowAction->channel_id);
+            if ($campaignLog->is_paused)
+                $delayValue = 0;
             createNewJob($input, $queue, $delayValue);
         } else {
             // Call cron to set campaignLog Complete
