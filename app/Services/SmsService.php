@@ -39,16 +39,10 @@ class SmsService
     {
         $obj->mobilesArr = [];
         $template = $flowAction->template;
-        collect($mongo_data['mobiles'])->map(function ($item) use ($obj, $variables, $template) {
-            $smsVariables = getChannelVariables($template->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
-            $item = array_merge($item, $smsVariables);
-            unset($item['variables']);
-            array_push($obj->mobilesArr, $item);
-        });
 
         return [
             "flow_id" => $template->template_id,
-            'recipients' => collect($obj->mobilesArr),
+            'recipients' => collect($mongo_data['mobiles']),
             "short_url" => true,
             "node_id" => $flowAction['id']
         ];

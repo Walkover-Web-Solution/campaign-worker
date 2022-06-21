@@ -76,7 +76,7 @@ class ChannelService
          */
 
         printLog("converting the contact body data to required context.", 2);
-        $convertedData = convertBody($md[0]->data->sendTo, $campaign);
+        $convertedData = convertBody($md[0]->data->sendTo, $campaign, $flow);
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);

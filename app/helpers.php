@@ -132,7 +132,7 @@ function stringToJson($str)
     return $mappedData;
 }
 
-function convertBody($md, $campaign)
+function convertBody($md, $campaign, $flow)
 {
     $allFlow = $campaign->flowActions()->get();
     $obj = new \stdClass();
@@ -143,9 +143,11 @@ function convertBody($md, $campaign)
     $obj->variables = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
 
-    $obj->hasChannel->map(function ($channel) use ($obj, $md) {
+    $template = $flow->template;
+
+    $obj->hasChannel->map(function ($channel) use ($obj, $md, $template) {
         $service = setService($channel);
-        collect($md)->map(function ($item) use ($obj, $service, $channel) {
+        collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
                 $obj->variables = collect($item->variables)->toArray();
             switch ($channel) {
@@ -179,14 +181,24 @@ function convertBody($md, $campaign)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $obj->mobiles = array_merge($obj->mobiles, $mobiles);
+                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item) {
+                            $smsVariables = getChannelVariables(
+                                $template->variables,
+                                empty($mobile['variables']) ? [] : (array)$mobile['variables'],
+                                empty($obj->variables) ? [] : $obj->variables
+                            );
+
+                            $mobile = array_merge($mobile, $smsVariables);
+                            unset($mobile['variables']);
+                            return $mobile;
+                        })->toArray();
+                        $obj->mobiles = array_merge($obj->mobiles, $data);
                         $obj->mobileCount += count($obj->mobiles);
                     }
                     break;
             }
         });
     });
-
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
@@ -440,14 +452,18 @@ function createNewJob($input, $queue, $delayTime = 0)
 
 function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
 {
+    $obj = new \stdClass();
+    $obj->variables = [];
     if (empty($contactVariables)) {
-        return $commonVariables;
+        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj) {
+            if (!empty($commonVariables[$variableKey]))
+                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        });
+        return $obj->variables;
     }
     $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
     $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
 
-    $obj = new \stdClass();
-    $obj->variables = [];
     collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
         if (!empty($contactVariables[$variableKey])) {
             $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
