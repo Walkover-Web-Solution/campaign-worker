@@ -58,7 +58,8 @@ class EventService
                     if (!empty($flowActionId)) {
                         $flowAction = FlowAction::where('id', $flowActionId)->first();
                         // get delay count
-                        $delay = (int)collect($flowAction->configurations)->firstWhere('name', 'delay')->value;
+                        $delayTime = collect($flowAction->configurations)->firstWhere('name', 'delay');
+                        $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         // create next action_log
                         $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]]);
                         if (!empty($next_action_log)) {
@@ -67,7 +68,7 @@ class EventService
                             $input->action_log_id =  $next_action_log->id;
                             // create job for next_action_log
                             $queue = getQueue($flowAction->channel_id);
-                            createNewJob($input, $queue, $delay);
+                            createNewJob($input, $queue, $delayValue);
                         }
                     }
                 }

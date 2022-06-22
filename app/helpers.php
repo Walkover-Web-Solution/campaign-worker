@@ -79,6 +79,32 @@ function createJWTToken($input)
     return JWTEncode($jwt);
 }
 
+function getSeconds($unit, $value)
+{
+    $value = (int)$value;
+
+    switch ($unit) {
+        case "seconds": {
+                return $value * 1;
+            }
+        case "minutes": {
+                return $value * 60;
+            }
+            break;
+        case "hours": {
+                return $value * 3600;
+            }
+            break;
+        case "days": {
+                return $value * 86400;
+            }
+            break;
+        default: {
+                return 0;
+            }
+    }
+}
+
 function logTest($message, $data)
 {
     $logData = [
@@ -106,7 +132,7 @@ function stringToJson($str)
     return $mappedData;
 }
 
-function convertBody($md, $campaign)
+function convertBody($md, $campaign, $flow)
 {
     $allFlow = $campaign->flowActions()->get();
     $obj = new \stdClass();
@@ -117,9 +143,11 @@ function convertBody($md, $campaign)
     $obj->variables = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
 
-    $obj->hasChannel->map(function ($channel) use ($obj, $md) {
+    $template = $flow->template;
+
+    $obj->hasChannel->map(function ($channel) use ($obj, $md, $template) {
         $service = setService($channel);
-        collect($md)->map(function ($item) use ($obj, $service, $channel) {
+        collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
                 $obj->variables = collect($item->variables)->toArray();
             switch ($channel) {
@@ -153,14 +181,24 @@ function convertBody($md, $campaign)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $obj->mobiles = array_merge($obj->mobiles, $mobiles);
+                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item) {
+                            $smsVariables = getChannelVariables(
+                                $template->variables,
+                                empty($mobile['variables']) ? [] : (array)$mobile['variables'],
+                                empty($obj->variables) ? [] : $obj->variables
+                            );
+
+                            $mobile = array_merge($mobile, $smsVariables);
+                            unset($mobile['variables']);
+                            return $mobile;
+                        })->toArray();
+                        $obj->mobiles = array_merge($obj->mobiles, $data);
                         $obj->mobileCount += count($obj->mobiles);
                     }
                     break;
             }
         });
     });
-
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
@@ -171,7 +209,7 @@ function convertBody($md, $campaign)
 
 function convertAttachments($attachments)
 {
-   return collect($attachments)->map(function ($item) {
+    return collect($attachments)->map(function ($item) {
         if ($item->fileType == "url") {
             return [
                 "filePath" => $item->file,
@@ -402,26 +440,30 @@ function createNewJob($input, $queue, $delayTime = 0)
         $input->failedCount = 0;
     printLog("Inside creating new job.", 2);
     if (env('APP_ENV') == 'local') {
-        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime))->onConnection('rabbitmqlocal');
+        $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime))->onConnection('rabbitmqlocal');
         dispatch($job); //dispatching the job
     } else {
         // $job = (new RabbitMQJob($input))->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
         // dispatch($job);
-        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds((int)$delayTime));
+        RabbitMQJob::dispatch($input)->onQueue($queue)->delay(Carbon::now()->addSeconds($delayTime));
     }
     printLog("Successfully created new job.", 2);
 }
 
 function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
 {
+    $obj = new \stdClass();
+    $obj->variables = [];
     if (empty($contactVariables)) {
-        return $commonVariables;
+        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj) {
+            if (!empty($commonVariables[$variableKey]))
+                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        });
+        return $obj->variables;
     }
     $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
     $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
 
-    $obj = new \stdClass();
-    $obj->variables = [];
     collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
         if (!empty($contactVariables[$variableKey])) {
             $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
