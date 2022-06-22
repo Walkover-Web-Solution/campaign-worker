@@ -36,10 +36,12 @@ class ChannelService
         if ($campaignLog->is_paused) {
             return;
         }
-
+        printLog("Checking for the campaign log Stopped or not ". $campaignLog->status);
         if ($campaignLog->status == 'Stopped') {
+            printLog("Status changing to Stopped");
             $action_log->status = 'Stopped';
             $action_log->save();
+            printLog("Status changed");
             return;
         }
 
