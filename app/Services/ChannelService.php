@@ -115,7 +115,15 @@ class ChannelService
          */
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
-        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count);
+        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count, $md);
+
+        // If loop detected next_action_log's status will be Stopped
+        if ($new_action_log->status == 'Stopped') {
+            $campaignLog->status = 'Stopped';
+            $campaignLog->save();
+            return;
+        }
+
         // in case of rcs for webhook
         if ($flow->channel_id == 5) {
             printLog("Job Consumed");
@@ -192,7 +200,7 @@ class ChannelService
         return $obj;
     }
 
-    public function updateActionLogResponse($flow, $action_log, $res, $reqDataCount)
+    public function updateActionLogResponse($flow, $action_log, $res, $reqDataCount, $md)
     {
         $val = "";
         $status = "Success";
@@ -221,10 +229,41 @@ class ChannelService
         $campaign = Campaign::find($action_log->campaign_id);
 
         $next_flow_id = null;
-        if ($status == 'Success')
+        if ($status == 'Success') {
+            $event_id = 1;
             $next_flow_id = isset($flow->module_data->op_success) ? $flow->module_data->op_success : null;
-        else
+        } else {
+            $event_id = 2;
             $next_flow_id = isset($flow->module_data->op_failed) ? $flow->module_data->op_failed : null;
+        }
+
+        // Check for loop and increase count
+        $path = $md[0]->node_count;
+        $path_key = $flow->id . '.' . $event_id;
+        $loop_detected = false;
+        if (empty($path->$path_key)) {
+            $path->$path_key = $next_flow_id + 0.1;
+        } else {
+            // In case next_flow_action gets changed, so reinitialize it
+            if ((int)$path->$path_key != $next_flow_id) {
+                $path->$path_key = $next_flow_id + 0.1;
+            } else {
+                $path->$path_key += 0.1;
+                $count = ($path->$path_key * 10) % 10;
+                if ($count > 2) {
+                    $loop_detected = true;
+                }
+            }
+        }
+
+        // Insert same data with change in path to mongo
+        $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
+        $data = [
+            'requestId' => $reqId,
+            'data' => $md[0]->data,
+            'node_count' => $path
+        ];
+        $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
 
         printLog('Get status from microservice ' . $status, 1);
         printLog("Enents are ", 1, $events);
@@ -237,12 +276,12 @@ class ChannelService
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
                     "no_of_records" => $action_log->no_of_records,
-                    "response" => "",
-                    "status" => "pending",
+                    "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
+                    "status" => $loop_detected ? "Stopped" : "pending",
                     "report_status" => "pending",
                     "ref_id" => "",
                     "flow_action_id" => $next_flow_id,
-                    "mongo_id" => $action_log->mongo_id,
+                    "mongo_id" => $reqId,
                     'campaign_log_id' => $action_log->campaign_log_id
                 ];
                 printLog('Creating new action as per channel id ', 1);

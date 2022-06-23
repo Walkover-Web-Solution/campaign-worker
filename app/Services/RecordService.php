@@ -61,7 +61,8 @@ class RecordService
         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
         $data = [
             'requestId' => $reqId,
-            'data' => $md[0]->data
+            'data' => $md[0]->data,
+            'node_count' => (object)[]
         ];
         $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
         printLog("data stiored in mongo and now creating action log", 2);
