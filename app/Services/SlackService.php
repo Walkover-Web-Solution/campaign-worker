@@ -131,6 +131,49 @@ class SlackService
     }
 
 
+    public function sendLoopErrorToSlack($error)
+    {
+        $input = array(
+            'text' => 'Loop Detected Error',
+            "attachments" => [
+                [
+                    "fields" => [
+                        [
+                            'title' => 'Campaign',
+                            'value' => $error->campaignId,
+                            'short' => false,
+                        ],
+                        [
+                            "title" => "Campaign_log_id",
+                            "value" => $error->campaignLogId,
+                            "short" => false,
+                        ],
+                        [
+                            "title" => "Action_log_id",
+                            "value" => $error->actionLogId,
+                            "short" => false,
+                        ]
+                    ]
+                ]
+            ]
+        );
+
+        if (isset($error->code)) {
+            $input['attachments'][0]['fields'][] = [
+                'title' => 'Code',
+                'value' => $error->code,
+                'short' => false,
+            ];
+        }
+
+        // $response = Curl::to('https://hooks.slack.com/services/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')
+        $response = Curl::to('https://hooks.slack.com/services/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')
+            ->withData($input)
+            ->asJson()
+            ->post();
+    }
+
+
     public function sendAPILog($input)
     {
         $input = array(

@@ -121,6 +121,14 @@ class ChannelService
         if ($new_action_log->status == 'Stopped') {
             $campaignLog->status = 'Stopped';
             $campaignLog->save();
+
+            $slack = new SlackService();
+            $error = array(
+                'campaignId' => $campaign->id,
+                'Campaign_log_id' => $campaignLog->id,
+                'Action_log_id' => $new_action_log->id
+            );
+            $slack->sendLoopErrorToSlack((object)$error);
             return;
         }
 
