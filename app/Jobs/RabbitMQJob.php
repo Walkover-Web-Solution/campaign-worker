@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Services\ChannelService;
 use App\Services\ConditionService;
+use App\Services\EventService;
 use App\Services\RecordService;
+use App\Services\SlackService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -63,9 +65,9 @@ class RabbitMQJob implements ShouldQueue
                         break;
                     }
                 case "event_processing": {
-                        // $log_id = $msg->action_log_id;
-                        // $msg->failedCount++;
-                        // createNewJob($msg, "condition_queue");
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $eventService = new EventService();
+                        $eventService->processEvent($msg->eventMongoId);
                         break;
                     }
                 case "failed_run_email_campaigns": {
@@ -135,9 +137,9 @@ class RabbitMQJob implements ShouldQueue
                         break;
                     }
                 case "failed_event_processing": {
-                        // $log_id = $msg->action_log_id;
-                        // $msg->failedCount++;
-                        // createNewJob($msg, "condition_queue");
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $msg->failedCount++;
+                        createNewJob($msg, "event_processing");
                         break;
                     }
                 default: {
@@ -155,6 +157,17 @@ class RabbitMQJob implements ShouldQueue
             ];
             logTest($failed_queue, $logData);
             printLog("Exception in" . $failed_queue, 1, $logData);
+
+            // Send error to Slack
+            $slack = new SlackService();
+            $error = array(
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'lineNo' => $e->getLine(),
+                'file' => $e->getFile(),
+                'input' => json_encode($msg)
+            );
+            $slack->sendErrorToSlack((object)$error);
 
             if ($failedCount >= 3) {
                 storeFailedJob($e->__toString(), $log_id, $this->queue, $msg, $this->connection);

@@ -30,6 +30,12 @@ class ConditionService
             return;
         }
 
+        if ($campaignLog->status == 'Stopped') {
+            $action_log->status = 'Stopped';
+            $action_log->save();
+            return;
+        }
+
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
         if (empty($flow)) {
             printLog("No flow actions found.", 5);
@@ -65,7 +71,7 @@ class ConditionService
                     $obj = getFilteredDatawithRemainingGroups($obj);
 
                     // create jobs for next actionLogs according to groups
-                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log) {
+                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog) {
                         $nextFlowAction = FlowAction::where('id', $obj->grpFlowActionMap[$grpId])->first();
 
                         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
@@ -92,11 +98,14 @@ class ConditionService
 
                         // adding delay time with job
                         $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+                        $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         if (!empty($actionLog)) {
                             $input = new \stdClass();
                             $input->action_log_id =  $actionLog->id;
+                            if ($campaignLog->is_paused)
+                                $delayValue = 0;
                             $queue = getQueue($nextFlowAction->channel_id);
-                            createNewJob($input, $queue, $delayTime->value);
+                            createNewJob($input, $queue, $delayValue);
                         }
                     });
 

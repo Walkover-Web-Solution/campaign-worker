@@ -8,7 +8,6 @@ use App\Models\Campaign;
 use App\Models\ChannelType;
 use App\Models\FlowAction;
 use Carbon\Carbon;
-use stdClass;
 
 /**
  * Class ChannelService
@@ -37,6 +36,14 @@ class ChannelService
         if ($campaignLog->is_paused) {
             return;
         }
+        printLog("Checking for the campaign log Stopped or not ". $campaignLog->status);
+        if ($campaignLog->status == 'Stopped') {
+            printLog("Status changing to Stopped");
+            $action_log->status = 'Stopped';
+            $action_log->save();
+            printLog("Status changed to stopped.");
+            return;
+        }
 
 
 
@@ -60,16 +67,22 @@ class ChannelService
         ]);
         $md = json_decode(json_encode($data));
 
+        // Seperate attachments from mongo data
+        $attachments = empty($md[0]->data->attachments) ? [] : $md[0]->data->attachments;
+
+        // Seperate reply_to from mongo data
+        $reply_to = empty($md[0]->data->reply_to) ? [] : $md[0]->data->reply_to;
+
         /**
          * generating the request body data according to flow channel id
          */
 
         printLog("converting the contact body data to required context.", 2);
-        $convertedData = convertBody($md[0]->data->sendTo, $campaign);
+        $convertedData = convertBody($md[0]->data->sendTo, $campaign, $flow);
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log);
+        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -118,13 +131,15 @@ class ChannelService
             if (empty($delayTime)) {
                 $delayValue = 0;
             } else {
-                $delayValue = $delayTime->value;
+                $delayValue = getSeconds($delayTime->unit, $delayTime->value);
             }
 
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
             $input->action_log_id =  $new_action_log->id;
             $queue = getQueue($nextFlowAction->channel_id);
+            if ($campaignLog->is_paused)
+                $delayValue = 0;
             createNewJob($input, $queue, $delayValue);
         } else {
             // Call cron to set campaignLog Complete
@@ -135,7 +150,7 @@ class ChannelService
     }
 
 
-    public function getRequestBody($flow, $convertedData, $action_log)
+    public function getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to)
     {
         /**
          * extracting the all the variables from the mongo data
@@ -159,73 +174,11 @@ class ChannelService
         $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
-                $obj->values = [];
-                collect($flow["configurations"])->map(function ($item) use ($obj) {
-                    if ($item->name != 'template')
-                        $obj->values[$item->name] = $item->value;
-                });
-                $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $variables) {
-                    $cc = [];
-                    $bcc = [];
-
-                    if (!empty($md['cc'])) {
-                        $cc = $md['cc'];
-                    } else if (!empty($obj->values['cc'])) {
-                        $cc = stringToJson($obj->values['cc']);
-                    }
-                    if (!empty($md['bcc'])) {
-                        $bcc = $md['bcc'];
-                    } else if (!empty($obj->values['bcc'])) {
-                        $bcc = stringToJson($obj->values['bcc']);
-                    }
-                    $to = $md['to'];
-                    $obj->count += count($to);
-                    if (!empty($cc))
-                        $obj->count += count($cc);
-                    if (!empty($bcc))
-                        $obj->count += count($bcc);
-
-                    //filter out variables of this flowActions template
-                    $variables = array_intersect($variables, $md['variables']);
-
-                    $data = array(
-                        "to" => $md['to'],
-                        "cc" => $cc,
-                        "bcc" => $bcc,
-                        "variables" => $variables
-                    );
-                    return $data;
-                })->toArray();
-
-                $domain = empty($obj->values['domain']) ? $obj->values['parent_domain'] : $obj->values['domain'];
-                $email = $obj->values['from_email'] . "@" . $domain;
-                $from = [
-                    "name" => $obj->values['from_email_name'],
-                    "email" => $email
-                ];
-                $data = array(
-                    "recipients" => $recipients,
-                    "from" => json_decode(collect($from)),
-                    "template_id" => $temp->template_id,
-                    "domain" => $obj->values['parent_domain']
-                );
+                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments, $reply_to);
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
             case 2: //For SMS
-                $obj->mobilesArr = [];
-
-                collect($mongo_data['mobiles'])->map(function ($item) use ($obj, $variables, $temp) {
-                    $smsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
-                    $item = array_merge($item, $smsVariables);
-                    unset($item['variables']);
-                    array_push($obj->mobilesArr, $item);
-                });
-
-                $data = [
-                    "flow_id" => $temp->template_id,
-                    'recipients' => collect($obj->mobilesArr),
-                    "short_url" => true
-                ];
+                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments);
                 $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
@@ -233,23 +186,11 @@ class ChannelService
                 break;
             case 5: //for rcs
                 $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
-                $obj->customer_number_variables = [];
-                collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $temp) {
-                    // get variables for this contact
-                    $rcsVariables = getChannelVariables($temp->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
-                    $data = [
-                        'customer_number' => $item['customer_number'],
-                        'variables' => array_values($rcsVariables)
-                    ];
-                    array_push($obj->customer_number_variables, $data);
-                });
-                $data['customer_number_variables'] = $obj->customer_number_variables;
                 $obj->count = count($mongo_data['mobiles']);
                 break;
         }
 
         $obj->data = json_decode(collect($data));
-
         return $obj;
     }
 
