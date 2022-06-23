@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Libs\MongoDBLib;
+use App\Models\FlowAction;
 use Carbon\Carbon;
 
 /**
@@ -14,6 +15,7 @@ class SmsService
     protected $mongo;
     public function __construct()
     {
+        //
     }
 
     public function createRequestBody($data)
@@ -31,6 +33,19 @@ class SmsService
         });
 
         return $obj->arr;
+    }
+
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables)
+    {
+        $obj->mobilesArr = [];
+        $template = $flowAction->template;
+
+        return [
+            "flow_id" => $template->template_id,
+            'recipients' => collect($mongo_data['mobiles']),
+            "short_url" => true,
+            "node_id" => $flowAction['id']
+        ];
     }
 
     public function storeReport($res, $actionLog, $collection)

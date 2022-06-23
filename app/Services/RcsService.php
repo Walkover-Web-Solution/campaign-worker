@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\ActionLog;
 use App\Models\FlowAction;
 
 /**
@@ -36,7 +35,7 @@ class RcsService
     public function getRequestBody(FlowAction $flowAction, $action_log, $mongo_data, $variables, $function)
     {
         // make template funciton and call using switch with $function
-        $template = $flowAction->configurations[0]->template;
+        $confTemplate = $flowAction->configurations[0]->template;
         $customer_variables = collect($mongo_data['mobiles'])->map(function ($item) {
             return [
                 "customer_number" => $item['mobiles'],
@@ -45,14 +44,27 @@ class RcsService
         })->toArray();
         $data = [
             "customer_number_variables" => $customer_variables,
-            "project_id" => $template->project_id,
+            "project_id" => $confTemplate->project_id,
             "function_name" => $function,
-            "name" => $template->name,
-            "namespace" => $template->template_id,
+            "name" => $confTemplate->name,
+            "namespace" => $confTemplate->template_id,
             "variables" => $variables,
-            "campaign_id" => $action_log->id . '_' . $action_log->mongo_id
+            "campaign_id" => $action_log->id . '_' . $action_log->mongo_id,
+            "node_id" => $flowAction->id
         ];
-
+        $obj = new \stdClass();
+        $obj->customer_number_variables = [];
+        $template = $flowAction->template;
+        collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $template) {
+            // get variables for this contact
+            $rcsVariables = getChannelVariables($template->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
+            $data = [
+                'customer_number' => $item['customer_number'],
+                'variables' => array_values($rcsVariables)
+            ];
+            array_push($obj->customer_number_variables, $data);
+        });
+        $data['customer_number_variables'] = $obj->customer_number_variables;
         return $data;
     }
 }

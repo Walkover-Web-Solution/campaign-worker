@@ -80,11 +80,13 @@ class RecordService
         if (empty($delayTime)) {
             $delayValue = 0;
         } else {
-            $delayValue = $delayTime->value;
+            $delayValue = getSeconds($delayTime->unit, $delayTime->value);
         }
         if (!empty($actionLog)) {
             $input = new \stdClass();
             $input->action_log_id =  $actionLog->id;
+            if ($camplog->is_paused)
+                $delayValue = 0;
             printLog("Now creating new job for next flow action.", 2);
             $queue = getQueue($flow->channel_id);
             createNewJob($input, $queue, $delayValue);
