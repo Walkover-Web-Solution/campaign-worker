@@ -133,6 +133,7 @@ class SlackService
 
     public function sendLoopErrorToSlack($error)
     {
+        return;
         $input = array(
             'text' => 'Loop Detected Error',
             "attachments" => [
