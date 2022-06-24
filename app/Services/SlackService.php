@@ -133,7 +133,6 @@ class SlackService
 
     public function sendLoopErrorToSlack($error)
     {
-        return;
         $input = array(
             'text' => 'Loop Detected Error',
             "attachments" => [
@@ -141,17 +140,17 @@ class SlackService
                     "fields" => [
                         [
                             'title' => 'Campaign',
-                            'value' => $error->campaignId,
+                            'value' => $error->campaign_id,
                             'short' => false,
                         ],
                         [
                             "title" => "Campaign_log_id",
-                            "value" => $error->campaignLogId,
+                            "value" => $error->Campaign_log_id,
                             "short" => false,
                         ],
                         [
                             "title" => "Action_log_id",
-                            "value" => $error->actionLogId,
+                            "value" => $error->Action_log_id,
                             "short" => false,
                         ]
                     ]

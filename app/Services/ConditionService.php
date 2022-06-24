@@ -125,7 +125,7 @@ class ConditionService
 
                             $slack = new SlackService();
                             $error = array(
-                                'campaignId' => $campaign->id,
+                                'campaign_id' => $campaign->id,
                                 'Campaign_log_id' => $campaignLog->id,
                                 'Action_log_id' => $actionLog->id
                             );

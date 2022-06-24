@@ -124,7 +124,7 @@ class ChannelService
 
             $slack = new SlackService();
             $error = array(
-                'campaignId' => $campaign->id,
+                'campaign_id' => $campaign->id,
                 'Campaign_log_id' => $campaignLog->id,
                 'Action_log_id' => $new_action_log->id
             );
