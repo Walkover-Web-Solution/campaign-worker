@@ -57,7 +57,7 @@ class RecordService
         ]);
         $md = json_decode(json_encode($data));
         printLog("Found mongo data.", 2);
-        printLog("DATA FROM MONGO IS : ", 1, (array)$md);
+        // printLog("DATA FROM MONGO IS : ", 1, (array)$md);
         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
         $data = [
             'requestId' => $reqId,

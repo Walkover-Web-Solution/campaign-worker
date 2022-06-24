@@ -115,16 +115,16 @@ class ChannelService
          */
         printLog('We have successfully send data to: ' . $flow['channel_id'] . ' channel', 1, empty($res) ? (array)['message' => 'NULL RESPONSE'] : (array)$res);
 
-        $new_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count, $md);
+        $next_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count, $md);
 
         // If loop detected next_action_log's status will be Stopped
-        if ($new_action_log->status == 'Stopped') {
+        if ($next_action_log->status == 'Stopped') {
             $campaignLog->status = 'Stopped';
             $campaignLog->save();
 
             $slack = new SlackService();
             $error = array(
-                'Action_log_id' => $new_action_log->id
+                'Action_log_id' => $next_action_log->id
             );
             $slack->sendLoopErrorToSlack((object)$error);
             return;
@@ -135,10 +135,10 @@ class ChannelService
             printLog("Job Consumed");
             return;
         }
-        printLog('Got new action log and its id is ' . empty($new_action_log) ? "Action Log NOT FOUND" : $new_action_log->id, 1);
-        if (!empty($new_action_log)) {
+        printLog('Got new action log and its id is ' . empty($next_action_log) ? "Action Log NOT FOUND" : $next_action_log->id, 1);
+        if (!empty($next_action_log)) {
 
-            $nextFlowAction = FlowAction::where('id', $new_action_log->flow_action_id)->first();
+            $nextFlowAction = FlowAction::where('id', $next_action_log->flow_action_id)->first();
             $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
             if (empty($delayTime)) {
                 $delayValue = 0;
@@ -148,7 +148,7 @@ class ChannelService
 
             printLog("Now creating new job for action log.", 1);
             $input = new \stdClass();
-            $input->action_log_id =  $new_action_log->id;
+            $input->action_log_id =  $next_action_log->id;
             $queue = getQueue($nextFlowAction->channel_id);
             if ($campaignLog->is_paused)
                 $delayValue = 0;
@@ -262,14 +262,9 @@ class ChannelService
             }
         }
 
-        // Insert same data with change in path to mongo
-        $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
-        $data = [
-            'requestId' => $reqId,
-            'data' => $md[0]->data,
-            'node_count' => $path
-        ];
-        $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
+        // Update path in mongo
+        $this->mongo->collection('flow_action_data')
+            ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
 
         printLog('Get status from microservice ' . $status, 1);
         printLog("Enents are ", 1, $events);
@@ -287,7 +282,7 @@ class ChannelService
                     "report_status" => "pending",
                     "ref_id" => "",
                     "flow_action_id" => $next_flow_id,
-                    "mongo_id" => $reqId,
+                    "mongo_id" => $action_log->mongo_id,
                     'campaign_log_id' => $action_log->campaign_log_id
                 ];
                 printLog('Creating new action as per channel id ', 1);
