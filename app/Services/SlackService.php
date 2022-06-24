@@ -137,23 +137,9 @@ class SlackService
             'text' => 'Loop Detected Error',
             "attachments" => [
                 [
-                    "fields" => [
-                        [
-                            'title' => 'Campaign',
-                            'value' => $error->campaign_id,
-                            'short' => false,
-                        ],
-                        [
-                            "title" => "Campaign_log_id",
-                            "value" => $error->Campaign_log_id,
-                            "short" => false,
-                        ],
-                        [
-                            "title" => "Action_log_id",
-                            "value" => $error->Action_log_id,
-                            "short" => false,
-                        ]
-                    ]
+                    "title" => "Action_log_id",
+                    "value" => $error->Action_log_id,
+                    "short" => false,
                 ]
             ]
         );

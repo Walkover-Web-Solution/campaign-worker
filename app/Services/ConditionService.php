@@ -20,7 +20,6 @@ class ConditionService
     {
         printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
-        $campaign = $action_log->campaign;
         $campaignLog = $action_log->campaignLog;
 
         printLog("Till now we found Campaign. And now about to find flow action.", 2);
@@ -74,7 +73,7 @@ class ConditionService
                     $obj = getFilteredDatawithRemainingGroups($obj);
 
                     // create jobs for next actionLogs according to groups
-                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog, $campaign, $path, $flow) {
+                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog, $path, $flow) {
                         $nextFlowAction = FlowAction::where('id', $obj->grpFlowActionMap[$grpId])->first();
 
                         // Check for loop and increase count
@@ -125,8 +124,6 @@ class ConditionService
 
                             $slack = new SlackService();
                             $error = array(
-                                'campaign_id' => $campaign->id,
-                                'Campaign_log_id' => $campaignLog->id,
                                 'Action_log_id' => $actionLog->id
                             );
                             $obj->loop = true;
