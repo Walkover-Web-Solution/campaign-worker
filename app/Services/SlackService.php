@@ -110,7 +110,7 @@ class SlackService
         }
 
         // $response = Curl::to('https://hooks.slack.com/services/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')
-        $response = Curl::to('https://hooks.slack.com/services/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')
+        $response = Curl::to('https://hooks.slack.com/services/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')
             ->withData($input)
             ->asJson()
             ->post();
