@@ -36,7 +36,7 @@ class ChannelService
         if ($campaignLog->is_paused) {
             return;
         }
-        printLog("Checking for the campaign log Stopped or not ". $campaignLog->status);
+        printLog("Checking for the campaign log Stopped or not " . $campaignLog->status);
         if ($campaignLog->status == 'Stopped') {
             printLog("Status changing to Stopped");
             $action_log->status = 'Stopped';
@@ -119,17 +119,19 @@ class ChannelService
 
         $next_action_log = $this->updateActionLogResponse($flow, $action_log, $res, $reqBody->count, $md);
 
-        // If loop detected next_action_log's status will be Stopped
-        if ($next_action_log->status == 'Stopped') {
-            $campaignLog->status = 'Stopped';
-            $campaignLog->save();
+        if (!empty($next_action_log)) {
+            // If loop detected next_action_log's status will be Stopped
+            if ($next_action_log->status == 'Stopped') {
+                $campaignLog->status = 'Stopped';
+                $campaignLog->save();
 
-            $slack = new SlackService();
-            $error = array(
-                'Action_log_id' => $next_action_log->id
-            );
-            $slack->sendLoopErrorToSlack((object)$error);
-            return;
+                $slack = new SlackService();
+                $error = array(
+                    'Action_log_id' => $next_action_log->id
+                );
+                $slack->sendLoopErrorToSlack((object)$error);
+                return;
+            }
         }
 
         // in case of rcs for webhook
