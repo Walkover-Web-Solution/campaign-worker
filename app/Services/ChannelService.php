@@ -41,7 +41,7 @@ class ChannelService
             printLog("Status changing to Stopped");
             $action_log->status = 'Stopped';
             $action_log->save();
-            printLog("Status changed");
+            printLog("Status changed to stopped.");
             return;
         }
 
