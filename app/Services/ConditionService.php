@@ -117,6 +117,12 @@ class ConditionService
                     ];
                     $action_log->status = "Consumed";
                     $action_log->save();
+
+
+                    if (empty((array)$obj->data)) {
+                        // Call cron to set campaignLog Complete
+                        updateCampaignLogStatus($campaignLog);
+                    }
                 }
                 break;
             default: {
