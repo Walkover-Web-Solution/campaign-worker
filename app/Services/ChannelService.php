@@ -134,11 +134,12 @@ class ChannelService
             }
         }
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5) {
+        // in case of rcs for webhook and email for queue
+        if ($flow->channel_id == 5 || $flow->channel_id == 1) {
             printLog("Job Consumed");
             return;
         }
+
         printLog('Got new action log and its id is ' . empty($next_action_log) ? "Action Log NOT FOUND" : $next_action_log->id, 1);
         if (!empty($next_action_log)) {
 
@@ -229,8 +230,8 @@ class ChannelService
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5)
+        // in case of rcs for webhook and email for queue
+        if ($flow->channel_id == 5 || $flow->channel_id == 1)
             return;
 
         printLog("We are here to create new action log as per module data", 1);
