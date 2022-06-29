@@ -562,24 +562,24 @@ function getEvent($event, $channel_id)
             //case for E-mail channel 
         case 1: {
                 if ($event == 'delivered') {
-                    return "Success";
+                    return "success";
                 } else if ($event == 'rejected' || $event == 'bounced' || $event == 'failed') {
-                    return "Failed";
+                    return "failed";
                 } else {
-                    return "Pending";
+                    return "pending";
                 }
             }
             break;
             //case for SMS channel 
         case 2: {
                 if ($event == 'delivered' || $event == 'clicked' || $event == 'unsubscribed' || $event == 'opened') {
-                    return "Success";
+                    return "success";
                 } else if ($event == 'rejected by kannel or provider' || $event == 'ndnc number' || $event == 'rejected by provider' || $event == ' number under blocked circle' || $event == 'blocked number' || $event == 'bounced' || $event == 'auto failed' || $event == 'failed') {
-                    return "Failed";
+                    return "failed";
                 } else if ($event == 'pending' || $event == 'report pending' || $event == 'submitted' || $event == 'sent') {
-                    return "Pending";
+                    return "pending";
                 } else {
-                    return "Pending";
+                    return "pending";
                 }
             }
             break;

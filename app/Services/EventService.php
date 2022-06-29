@@ -55,7 +55,11 @@ class EventService
 
         $obj = new \stdClass();
         $obj->noActionFoundFlag = true;
+        $obj->loop = false;
         collect($action_log->flowAction->module_data)->map(function ($flowActionId, $key) use ($filteredData, $action_log, $obj, $mongo_data) {
+            if ($obj->loop) {
+                return;
+            }
             if (\Str::startsWith($key, 'op_')) {
                 $keySplit = explode('_', $key);
                 if (count($keySplit) == 2) {
@@ -66,8 +70,23 @@ class EventService
                         $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         // create next action_log
                         $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]], $mongo_data);
+
                         if (!empty($next_action_log)) {
-                            $obj->noActionFoundFlag = false;
+                            // If loop detected next_action_log's status will be Stopped
+                            if ($next_action_log->status == 'Stopped') {
+                                $campaignLog = $next_action_log->campaignLog;
+                                $campaignLog->status = 'Stopped';
+                                $campaignLog->save();
+
+                                $slack = new SlackService();
+                                $error = array(
+                                    'Action_log_id' => $next_action_log->id
+                                );
+                                $slack->sendLoopErrorToSlack((object)$error);
+                                $obj->noActionFoundFlag = false;
+                                $obj->loop = true;
+                                return;
+                            }
                             $input = new \stdClass();
                             $input->action_log_id =  $next_action_log->id;
                             // create job for next_action_log
@@ -109,11 +128,12 @@ class EventService
                         // Add all events in condition which are recieved from microservices
                         if (!empty($contact)) {
                             $event = strtolower($item->event);
-                            if ($event == 'success' || $event == 'delivered') {
+                            $event = getEvent($event, $channel_id); // get synnonym of respected microservice's event which are available in events table
+                            if ($event == 'success') {
                                 if (empty($obj->data['success'][$key][$field]))
                                     $obj->data['success'][$key][$field] = [];
                                 array_push($obj->data['success'][$key][$field], $contact);
-                            } else if ($event == 'failed' || $event == 'rejected' || $event == 'bounced') {
+                            } else if ($event == 'failed') {
                                 if (empty($obj->data['failed'][$key][$field]))
                                     $obj->data['failed'][$key][$field] = [];
                                 array_push($obj->data['failed'][$key][$field], $contact);
