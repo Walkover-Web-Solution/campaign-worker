@@ -50,7 +50,7 @@ class RcsService
             "namespace" => $confTemplate->template_id,
             "variables" => $variables,
             "campaign_id" => $action_log->id . '_' . $action_log->mongo_id,
-            "node_id" => $flowAction->id
+            "node_id" => (string)$flowAction->id
         ];
         $obj = new \stdClass();
         $obj->customer_number_variables = [];

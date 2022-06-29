@@ -342,6 +342,10 @@ function getFilteredData($obj)
                     if (!empty($contact->mobiles)) {
                         $countryCode = getCountryCode($contact->mobiles);
                         $key = 'op_' . $countryCode;
+                        //In case key doesn't exists, then treat the contact in others
+                        if (empty($obj->moduleData->$key)) {
+                            $key = 'op_others';
+                        }
                         if (!empty($obj->moduleData->$key)) {
                             $grpKey = $key . '_grp_id';
                             if (!empty($obj->moduleData->$grpKey)) {
