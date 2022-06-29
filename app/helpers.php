@@ -559,15 +559,18 @@ function getEvent($event, $channel_id)
 {
     $event = strtolower($event);
     switch ($channel_id) {
-
+            //case for E-mail channel 
         case 1: {
                 if ($event == 'delivered') {
                     return "Success";
-                }
-                if ($event == 'rejected' || $event == 'bounced' || $event == 'failed') {
+                } else if ($event == 'rejected' || $event == 'bounced' || $event == 'failed') {
                     return "Failed";
+                } else {
+                    return "Pending";
                 }
             }
+            break;
+            //case for SMS channel 
         case 2: {
                 if ($event == 'delivered' || $event == 'clicked' || $event == 'unsubscribed' || $event == 'opened') {
                     return "Success";
@@ -575,7 +578,10 @@ function getEvent($event, $channel_id)
                     return "Failed";
                 } else if ($event == 'pending' || $event == 'report pending' || $event == 'submitted' || $event == 'sent') {
                     return "Pending";
+                } else {
+                    return "Pending";
                 }
             }
+            break;
     }
 }
