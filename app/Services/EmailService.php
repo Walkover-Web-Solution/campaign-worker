@@ -85,7 +85,7 @@ class EmailService
             "domain" => $obj->values['parent_domain'],
             "attachments" => $attachments,
             "reply_to" => $reply_to,
-            "node_id" => $flowAction['id']
+            "node_id" => (string)$flowAction['id']
         );
     }
 
