@@ -20,7 +20,6 @@ class ConditionService
     {
         printLog("----- Lets process action log ----------", 2);
         $action_log = ActionLog::where('id', $actionLogId)->first();
-        $campaign = $action_log->campaign;
         $campaignLog = $action_log->campaignLog;
 
         printLog("Till now we found Campaign. And now about to find flow action.", 2);
@@ -51,11 +50,14 @@ class ConditionService
         $data = $this->mongo->collection('flow_action_data')->find([
             'requestId' => $action_log->mongo_id
         ]);
-
         $obj = new \stdClass();
         // get mongoData
         $md = json_decode(json_encode($data));
         $obj->mongoData = $md[0]->data->sendTo;
+
+        // loop path
+        $path = $md[0]->node_count;
+        $obj->loop = false;
 
         $conditionId = collect($flow->configurations)->firstWhere('name', 'Condition')->value;
         $countries = 1;
@@ -71,13 +73,32 @@ class ConditionService
                     $obj = getFilteredDatawithRemainingGroups($obj);
 
                     // create jobs for next actionLogs according to groups
-                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog) {
+                    collect($obj->data)->map(function ($data, $grpId) use ($obj, $action_log, $campaignLog, $path, $flow) {
                         $nextFlowAction = FlowAction::where('id', $obj->grpFlowActionMap[$grpId])->first();
+
+                        // Check for loop and increase count
+                        $path_key = $flow->id . '.' . $grpId;
+                        $loop_detected = false;
+                        if (empty($path->$path_key)) {
+                            $path->$path_key = $nextFlowAction->id + 0.1;
+                        } else {
+                            // In case next_flow_action gets changed, so reinitialize it
+                            if ((int)$path->$path_key != $nextFlowAction->id) {
+                                $path->$path_key = $nextFlowAction->id + 0.1;
+                            } else {
+                                $path->$path_key += 0.1;
+                                $count = ($path->$path_key * 10) % 10;
+                                if ($count > 2) {
+                                    $loop_detected = true;
+                                }
+                            }
+                        }
 
                         $reqId = preg_replace('/\s+/', '',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
                         $filterdata_mongoID = [
                             'requestId' => $reqId,
-                            'data' => ["sendTo" => $data]
+                            'data' => ["sendTo" => $data],
+                            'node_count' => $path
                         ];
                         $this->mongo->collection('flow_action_data')->insertOne($filterdata_mongoID);
 
@@ -85,8 +106,8 @@ class ConditionService
                         $actionLogData = [
                             "campaign_id" => $action_log->campaign_id,
                             "no_of_records" => $action_log->no_of_records,
-                            "response" => "",
-                            "status" => "pending",
+                            "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
+                            "status" => $loop_detected ? "Stopped" : "pending",
                             "report_status" => "pending",
                             "flow_action_id" => $nextFlowAction->id,
                             "ref_id" => "",
@@ -95,6 +116,23 @@ class ConditionService
                         ];
                         printLog('Creating new action as per channel id ', 1);
                         $actionLog = $nextFlowAction->actionLog()->create($actionLogData);
+
+                        // If loop detected next_action_log's status will be Stopped
+                        if ($actionLog->status == 'Stopped') {
+                            $campaignLog->status = 'Stopped';
+                            $campaignLog->save();
+
+                            $slack = new SlackService();
+                            $error = array(
+                                'Action_log_id' => $actionLog->id
+                            );
+                            $obj->loop = true;
+                            $slack->sendLoopErrorToSlack((object)$error);
+                            return;
+                        }
+                        if ($obj->loop) {
+                            return;
+                        }
 
                         // adding delay time with job
                         $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
@@ -117,6 +155,12 @@ class ConditionService
                     ];
                     $action_log->status = "Consumed";
                     $action_log->save();
+
+
+                    if (empty((array)$obj->data)) {
+                        // Call cron to set campaignLog Complete
+                        updateCampaignLogStatus($campaignLog);
+                    }
                 }
                 break;
             default: {

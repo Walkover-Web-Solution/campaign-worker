@@ -44,7 +44,7 @@ class SmsService
             "flow_id" => $template->template_id,
             'recipients' => collect($mongo_data['mobiles']),
             "short_url" => true,
-            "node_id" => $flowAction['id']
+            "node_id" => (string)$flowAction['id']
         ];
     }
 
