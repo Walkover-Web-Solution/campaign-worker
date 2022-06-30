@@ -557,30 +557,37 @@ function updateActionLog($log_id, $failedJobId)
  */
 function getEvent($event, $channel_id)
 {
-    $event = strtolower($event);
+
     switch ($channel_id) {
             //case for E-mail channel 
         case 1: {
-                if ($event == 'delivered') {
-                    return "success";
-                } else if ($event == 'rejected' || $event == 'bounced' || $event == 'failed') {
-                    return "failed";
-                } else {
-                    return "pending";
+                $eventsynonyms = [
+                    "success" => ['delivered'],
+                    "failed" => ['rejected', 'bounced', 'failed']
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
                 }
+                return 'pending';
             }
             break;
-            //case for SMS channel 
+            //case for SMS channel
         case 2: {
-                if ($event == 'delivered' || $event == 'clicked' || $event == 'unsubscribed' || $event == 'opened') {
-                    return "success";
-                } else if ($event == 'rejected by kannel or provider' || $event == 'ndnc number' || $event == 'rejected by provider' || $event == ' number under blocked circle' || $event == 'blocked number' || $event == 'bounced' || $event == 'auto failed' || $event == 'failed') {
-                    return "failed";
-                } else if ($event == 'pending' || $event == 'report pending' || $event == 'submitted' || $event == 'sent') {
-                    return "pending";
-                } else {
-                    return "pending";
+                $eventsynonyms = [
+                    "success" => ['delivered', 'clicked', 'unsubscribed', 'opened'],
+                    "failed" => [
+                        'rejected by kannel or provider', 'ndnc number', 'rejected by provider',
+                        'number under blocked circle', 'blocked number', 'bounced', 'auto failed', 'failed'
+                    ]
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
                 }
+                return 'pending';
             }
             break;
     }
