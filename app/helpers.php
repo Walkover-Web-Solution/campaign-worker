@@ -565,8 +565,8 @@ function getEvent($event, $channel_id)
                     "success" => ['delivered'],
                     "failed" => ['rejected', 'bounced', 'failed']
                 ];
-                foreach ($eventsynonyms as $key => $value) {
-                    if (in_array($event, $value)) {
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
                         return $key;
                     }
                 }
@@ -582,8 +582,8 @@ function getEvent($event, $channel_id)
                         'number under blocked circle', 'blocked number', 'bounced', 'auto failed', 'failed'
                     ]
                 ];
-                foreach ($eventsynonyms as $key => $value) {
-                    if (in_array($event, $value)) {
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
                         return $key;
                     }
                 }
