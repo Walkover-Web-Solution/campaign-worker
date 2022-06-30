@@ -61,6 +61,8 @@ cat .ebextensions/supervisor/failed_onek_data_process.conf > /etc/supervisor/con
 cat .ebextensions/supervisor/failed_condition_consumption.conf > /etc/supervisor/conf.d/failed_condition_consumption.conf
 cat .ebextensions/supervisor/failed_rcs_consumption.conf > /etc/supervisor/conf.d/failed_rcs_consumption.conf
 cat .ebextensions/supervisor/failed_events_processing.conf > /etc/supervisor/conf.d/failed_events_processing.conf
+cat .ebextensions/supervisor/email_to_campaign_logs.conf > /etc/supervisor/conf.d/email_to_campaign_logs.conf
+
 
 # Create queue if not exist
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "1k_data_queue"
