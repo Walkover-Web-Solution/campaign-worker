@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ActionLog;
 use App\Services\ChannelService;
 use App\Services\ConditionService;
 use App\Services\EventService;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue;
 
 class RabbitMQJob implements ShouldQueue
@@ -62,12 +64,6 @@ class RabbitMQJob implements ShouldQueue
                         $log_id = $msg->action_log_id;
                         $channelService = new ChannelService();
                         $channelService->sendData($log_id);
-                        break;
-                    }
-                case "event_processing": {
-                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
-                        $eventService = new EventService();
-                        $eventService->processEvent($msg->eventMongoId);
                         break;
                     }
                 case "failed_run_email_campaigns": {
@@ -136,10 +132,29 @@ class RabbitMQJob implements ShouldQueue
                         createNewJob($msg, "condition_queue");
                         break;
                     }
+                case "event_processing": {
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $eventService = new EventService();
+                        $eventService->processEvent($msg->eventMongoId);
+                        break;
+                    }
                 case "failed_event_processing": {
                         $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
                         $msg->failedCount++;
                         createNewJob($msg, "event_processing");
+                        break;
+                    }
+                case "email_to_campaign_logs": {
+                        $log_id = $msg->request_id; // Event request_id is ref_id for event processing
+                        $actionLog = ActionLog::where('ref_id', $log_id)->first();
+                        $eventService = new EventService();
+                        $eventService->processEvent($actionLog, $msg, true);
+                        break;
+                    }
+                case "failed_email_to_campaign_logs": {
+                        $log_id = $msg->request_id; // Event request_id is ref_id for event processing
+                        $msg->failedCount++;
+                        createNewJob($msg, "email_to_campaign_logs");
                         break;
                     }
                 default: {

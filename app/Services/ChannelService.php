@@ -40,12 +40,14 @@ class ChannelService
         if ($campaignLog->status == 'Stopped') {
             printLog("Status changing to Stopped");
             $action_log->status = 'Stopped';
+            // In case of CampaignLog Stopped due to loop. update response of action_log also.
+            if ($campaignLog->actionLogs()->whereJsonContains('response', ["errors" => "Loop detected!"])->count() > 0) {
+                $action_log->response = ['errors' => "Loop detected!"];
+            }
             $action_log->save();
             printLog("Status changed to stopped.");
             return;
         }
-
-
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
@@ -134,11 +136,12 @@ class ChannelService
             }
         }
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5) {
+        // in case of rcs for webhook and email for queue
+        if ($flow->channel_id == 5 || $flow->channel_id == 1) {
             printLog("Job Consumed");
             return;
         }
+
         printLog('Got new action log and its id is ' . empty($next_action_log) ? "Action Log NOT FOUND" : $next_action_log->id, 1);
         if (!empty($next_action_log)) {
 
@@ -229,9 +232,11 @@ class ChannelService
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5)
-            return;
+        if ($status != 'Failed') {
+            // in case of rcs for webhook and email for queue
+            if ($flow->channel_id == 5 || $flow->channel_id == 1)
+                return;
+        }
 
         printLog("We are here to create new action log as per module data", 1);
 
@@ -271,7 +276,7 @@ class ChannelService
             ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
 
         printLog('Get status from microservice ' . $status, 1);
-        printLog("Enents are ", 1, $events);
+        printLog("Events are ", 1, $events);
         if (in_array($status, $events) && !empty($next_flow_id)) {
             printLog('Next flow id is ' . $next_flow_id, 1);
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
