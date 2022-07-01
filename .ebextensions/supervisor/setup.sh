@@ -77,6 +77,7 @@ sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_em
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_sms_campaigns"
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_run_rcs_campaigns"
 sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "failed_event_processing"
+sudo /usr/bin/php /var/app/current/artisan rabbitmq:queue-declare "email_to_campaign_logs"
 
 if ps aux | grep "[/]usr/bin/supervisord"; then
     echo "supervisor is running"
