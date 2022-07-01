@@ -20,21 +20,25 @@ class EventService
         //
     }
 
-    public function processEvent($eventMongoId)
+    public function processEvent($eventMongoId, $requestBody = [], $noMongo = false)
     {
         if (empty($this->mongo)) {
             $this->mongo = new MongoDBLib();
         }
+        if (!$noMongo) {
+            $requestBody = $this->mongo->collection('event_action_data')->find([
+                'requestId' => $eventMongoId
+            ]);
+            $requestBody = json_decode(json_encode($requestBody))[0]->data;
 
-        $requestBody = $this->mongo->collection('event_action_data')->find([
-            'requestId' => $eventMongoId
-        ]);
-        $requestBody = json_decode(json_encode($requestBody))[0]->data;
+            $campaign_id_split = explode('_', $requestBody->campaign_id);
+            $actionLogId = $campaign_id_split[0];
 
-        $campaign_id_split = explode('_', $requestBody->campaign_id);
-        $actionLogId = $campaign_id_split[0];
-
-        $action_log = ActionLog::where('id', (int)$actionLogId)->first();
+            $action_log = ActionLog::where('id', (int)$actionLogId)->first();
+        } else {
+            // In case of email eventMongoId will be action_log model from queue : 'email_to_campaign_logs'
+            $action_log = $eventMongoId;
+        }
         if (empty($action_log)) {
             throw new \Exception('Action Log not found!');
         }
@@ -51,7 +55,11 @@ class EventService
 
         $obj = new \stdClass();
         $obj->noActionFoundFlag = true;
-        collect($action_log->flowAction->module_data)->map(function ($flowActionId, $key) use ($filteredData, $action_log, $obj) {
+        $obj->loop = false;
+        collect($action_log->flowAction->module_data)->map(function ($flowActionId, $key) use ($filteredData, $action_log, $obj, $mongo_data) {
+            if ($obj->loop) {
+                return;
+            }
             if (\Str::startsWith($key, 'op_')) {
                 $keySplit = explode('_', $key);
                 if (count($keySplit) == 2) {
@@ -61,9 +69,24 @@ class EventService
                         $delayTime = collect($flowAction->configurations)->firstWhere('name', 'delay');
                         $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         // create next action_log
-                        $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]]);
+                        $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]], $mongo_data);
+
                         if (!empty($next_action_log)) {
-                            $obj->noActionFoundFlag = false;
+                            // If loop detected next_action_log's status will be Stopped
+                            if ($next_action_log->status == 'Stopped') {
+                                $campaignLog = $next_action_log->campaignLog;
+                                $campaignLog->status = 'Stopped';
+                                $campaignLog->save();
+
+                                $slack = new SlackService();
+                                $error = array(
+                                    'Action_log_id' => $next_action_log->id
+                                );
+                                $slack->sendLoopErrorToSlack((object)$error);
+                                $obj->noActionFoundFlag = false;
+                                $obj->loop = true;
+                                return;
+                            }
                             $input = new \stdClass();
                             $input->action_log_id =  $next_action_log->id;
                             // create job for next_action_log
@@ -93,6 +116,7 @@ class EventService
         $obj->data['unread'] = [];
 
         collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
+            $item = (object)$item;
             collect($mongo_data->data->sendTo)->map(function ($sendToItem, $key) use ($obj, $item, $channel_id) {
                 collect($sendToItem)->map(function ($contacts, $field) use ($obj, $item, $channel_id, $key) {
                     if ($field != 'variables') {
@@ -104,6 +128,7 @@ class EventService
                         // Add all events in condition which are recieved from microservices
                         if (!empty($contact)) {
                             $event = strtolower($item->event);
+                            $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
                             if ($event == 'success') {
                                 if (empty($obj->data['success'][$key][$field]))
                                     $obj->data['success'][$key][$field] = [];
@@ -141,7 +166,7 @@ class EventService
     /**
      * Create next Action Log from webhook
      */
-    public function createNextActionLog($flowAction, $event, $action_log, $filteredData)
+    public function createNextActionLog($flowAction, $event, $action_log, $filteredData, $mongo_data)
     {
         // As per change in sendTo to make everyobject into one request, FilterData will be send in sendTo key
         $filteredData = ['sendTo' => array_values($filteredData)];
@@ -149,10 +174,51 @@ class EventService
         // generating random key with time stamp for mongo requestId
         $reqId = preg_replace('/\s+/', '', Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
 
+        switch ($event) {
+            case "Success": {
+                    $event_id = 1;
+                    break;
+                }
+            case "Failed": {
+                    $event_id = 2;
+                    break;
+                }
+            case "Read": {
+                    $event_id = 3;
+                    break;
+                }
+            case "Unread": {
+                    $event_id = 4;
+                    break;
+                }
+        }
+
+        // Check for loop and increase count
+        $thisFlowAction = $action_log->flowAction;
+        $next_flow_id = $flowAction->id; // Next flowAction
+        $path = (object)$mongo_data->node_count;
+        $path_key = $thisFlowAction->id . '.' . $event_id;
+        $loop_detected = false;
+        if (empty($path->$path_key)) {
+            $path->$path_key =  $next_flow_id + 0.1;
+        } else {
+            // In case next_flow_action gets changed, so reinitialize it
+            if ((int)$path->$path_key != $next_flow_id) {
+                $path->$path_key = $next_flow_id + 0.1;
+            } else {
+                $path->$path_key += 0.1;
+                $count = ($path->$path_key * 10) % 10;
+                if ($count > 2) {
+                    $loop_detected = true;
+                }
+            }
+        }
+
         // Store data in mongo and get requestId
         $data = [
             'requestId' => $reqId,
-            'data' => $filteredData
+            'data' => $filteredData,
+            'node_count' => $path
         ];
         $this->mongo->collection('flow_action_data')->insertOne($data);
 
@@ -168,8 +234,8 @@ class EventService
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
                     "no_of_records" => $action_log->no_of_records,
-                    "response" => "",
-                    "status" => "pending",
+                    "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
+                    "status" => $loop_detected ? "Stopped" : "pending",
                     "report_status" => "pending",
                     "ref_id" => "",
                     "flow_action_id" => $flowAction->id,

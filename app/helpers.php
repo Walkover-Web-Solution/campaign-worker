@@ -550,3 +550,45 @@ function updateActionLog($log_id, $failedJobId)
     ];
     $actionLog->save();
 }
+
+/**
+ * 
+ * Return a campaign event according to the event received from corresponding chhannel_id
+ */
+function getEvent($event, $channel_id)
+{
+
+    switch ($channel_id) {
+            //case for E-mail channel 
+        case 1: {
+                $eventsynonyms = [
+                    "success" => ['delivered'],
+                    "failed" => ['rejected', 'bounced', 'failed']
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
+                }
+                return 'pending';
+            }
+            break;
+            //case for SMS channel
+        case 2: {
+                $eventsynonyms = [
+                    "success" => ['delivered', 'clicked', 'unsubscribed', 'opened'],
+                    "failed" => [
+                        'rejected by kannel or provider', 'ndnc number', 'rejected by provider',
+                        'number under blocked circle', 'blocked number', 'bounced', 'auto failed', 'failed'
+                    ]
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
+                }
+                return 'pending';
+            }
+            break;
+    }
+}
