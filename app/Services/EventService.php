@@ -128,7 +128,7 @@ class EventService
                         // Add all events in condition which are recieved from microservices
                         if (!empty($contact)) {
                             $event = strtolower($item->event);
-                            $event = getEvent($event, $channel_id); // get synnonym of respected microservice's event which are available in events table
+                            $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
                             if ($event == 'success') {
                                 if (empty($obj->data['success'][$key][$field]))
                                     $obj->data['success'][$key][$field] = [];
