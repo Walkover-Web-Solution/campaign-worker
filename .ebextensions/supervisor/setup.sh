@@ -61,7 +61,7 @@ cat .ebextensions/supervisor/failed_onek_data_process.conf > /etc/supervisor/con
 cat .ebextensions/supervisor/failed_condition_consumption.conf > /etc/supervisor/conf.d/failed_condition_consumption.conf
 cat .ebextensions/supervisor/failed_rcs_consumption.conf > /etc/supervisor/conf.d/failed_rcs_consumption.conf
 cat .ebextensions/supervisor/failed_events_processing.conf > /etc/supervisor/conf.d/failed_events_processing.conf
-cat .ebextensions/supervisor/email_to_campaign_logs.conf > /etc/supervisor/conf.d/email_to_campaign_logs.conf
+cat .ebextensions/supervisor/email_webhook_processing.conf > /etc/supervisor/conf.d/email_webhook_processing.conf
 
 
 # Create queue if not exist
