@@ -466,9 +466,10 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         return $obj->variables;
     }
     $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
-    $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
 
-    collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+    // $variableKeys = array_intersect($totalVariables, array_keys($commonVariables));
+    
+    collect($totalVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
         if (!empty($contactVariables[$variableKey])) {
             $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
         } else if (!empty($commonVariables[$variableKey])) {
