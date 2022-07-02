@@ -181,15 +181,17 @@ function convertBody($md, $campaign, $flow)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item) {
+                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item, $channel) {
                             $smsVariables = getChannelVariables(
                                 $template->variables,
                                 empty($mobile['variables']) ? [] : (array)$mobile['variables'],
-                                empty($obj->variables) ? [] : $obj->variables
+                                empty($obj->variables) ? [] : $obj->variables,
+                                $channel
                             );
 
                             $mobile = array_merge($mobile, $smsVariables);
                             unset($mobile['variables']);
+
                             return $mobile;
                         })->toArray();
                         $obj->mobiles = array_merge($obj->mobiles, $data);
@@ -199,6 +201,7 @@ function convertBody($md, $campaign, $flow)
             }
         });
     });
+
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
@@ -454,28 +457,74 @@ function createNewJob($input, $queue, $delayTime = 0)
     printLog("Successfully created new job.", 2);
 }
 
-function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
+function getChannelVariables($templateVariables, $contactVariables, $commonVariables, $channel)
 {
     $obj = new \stdClass();
     $obj->variables = [];
     if (empty($contactVariables)) {
-        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj) {
-            if (!empty($commonVariables[$variableKey]))
-                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj, $channel) {
+            if (!empty($commonVariables[$variableKey])) {
+                if ($channel == 3) {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+                } else {
+                    if (is_string($commonVariables[$variableKey])) {
+                        $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+                    } else {
+                        $var = $commonVariables[$variableKey];
+                        if (empty($var->type)) {
+                            $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
+                        } else {
+                            $key = $var->type;
+                            $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+                        }
+                    }
+                }
+            }
         });
+
         return $obj->variables;
     }
+
     $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
 
     // $variableKeys = array_intersect($totalVariables, array_keys($commonVariables));
-    
-    collect($totalVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+
+    collect($templateVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
         if (!empty($contactVariables[$variableKey])) {
-            $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+            if ($channel == 3) {
+                $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+            } else {
+                if (is_string($contactVariables[$variableKey])) {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+                } else {
+                    $var = $contactVariables[$variableKey];
+                    if (empty($var->type)) {
+                        $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
+                    } else {
+                        $key = $var->type;
+                        $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+                    }
+                }
+            }
         } else if (!empty($commonVariables[$variableKey])) {
-            $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+            if ($channel == 3) {
+                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+            } else {
+                if (is_string($commonVariables[$variableKey])) {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+                } else {
+                    $var = $commonVariables[$variableKey];
+                    if (empty($var->type)) {
+                        $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
+                    } else {
+                        $key = $var->type;
+                        $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+                    }
+                }
+            }
         }
     });
+
     return $obj->variables;
 }
 
