@@ -471,11 +471,11 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                         $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
                     } else {
                         $var = $commonVariables[$variableKey];
-                        if (empty($var->type)) {
+                        if (empty($var->value)) {
                             $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
                         } else {
-                            $key = $var->type;
-                            $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+
+                            $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
                         }
                     }
                 }
@@ -498,11 +498,10 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                     $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
                 } else {
                     $var = $contactVariables[$variableKey];
-                    if (empty($var->type)) {
+                    if (empty($var->value)) {
                         $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
                     } else {
-                        $key = $var->type;
-                        $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+                        $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
                     }
                 }
             }
@@ -514,11 +513,10 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                     $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
                 } else {
                     $var = $commonVariables[$variableKey];
-                    if (empty($var->type)) {
+                    if (empty($var->value)) {
                         $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
                     } else {
-                        $key = $var->type;
-                        $obj->variables = array_merge($obj->variables, [$variableKey => empty($var->$key) ? "" : $var->$key]);
+                        $obj->variables = array_merge($obj->variables, [$variableKey =>$var->value]);
                     }
                 }
             }

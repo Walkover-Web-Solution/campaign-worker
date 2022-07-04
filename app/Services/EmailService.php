@@ -66,11 +66,11 @@ class EmailService
                 if (is_string($var)) {
                     return $var;
                 } else {
-                    if (empty($var->type)) {
+                    if (empty($var->value)) {
                         return "";
                     } else {
-                        $key = $var->type;
-                        return empty($var->$key) ? "" : $var->$key;
+
+                        return $var->value;
                     }
                 }
             })->toArray();
