@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Libs\MongoDBLib;
+use App\Models\FlowAction;
 
 /**
  * Class WhatsappService
@@ -37,6 +38,40 @@ class WhatsappService
         });
         array_push($obj->arr, ["mobiles" => $obj->mob]);
         return $obj->arr;
+    }
+
+    public function getRequestBody(FlowAction $flowAction, $mongo_data, $variables)
+    {
+        $data = collect($mongo_data["mobiles"])->map(function ($item) {
+            $mob = $item["mobiles"];
+            unset($item["mobiles"]);
+            $var = $item;
+            $arr = [
+                "to" => is_string($mob) ? [$mob] : $mob,
+                "components" => $var
+            ];
+            return $arr;
+        })->toArray();
+
+        $configurations = collect($flowAction->configurations);
+        $template = $configurations->firstWhere('name', 'template');
+        $integratedNo = $configurations->firstWhere('name', 'integrated_number');
+
+        $body = [
+            "integrated_number" => $integratedNo->value,
+            "content_type" => "template",
+            "payload" => [
+                "type" => "template",
+                "template" => [
+                    "name" => $template->template->template_id,
+                    $template->template->language,
+                    "namespace" => $template->template->namespace,
+                    "to_and_components" => $data
+                ]
+            ],
+            "node_id" => (string)$flowAction['id']
+        ];
+        return $body;
     }
 
     public function storeReport($res, $actionLog, $collection)
