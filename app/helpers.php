@@ -485,44 +485,29 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         return $obj->variables;
     }
 
-    $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
-
-    // $variableKeys = array_intersect($totalVariables, array_keys($commonVariables));
-
     collect($templateVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
         if (!empty($contactVariables[$variableKey])) {
-            if ($channel == 3) {
-                $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
-            } else {
-                if (is_string($contactVariables[$variableKey])) {
-                    $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
-                } else {
-                    $var = $contactVariables[$variableKey];
-                    if (empty($var->value)) {
-                        $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
-                    } else {
-                        $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
-                    }
-                }
-            }
+            $variableSet = $contactVariables;
         } else if (!empty($commonVariables[$variableKey])) {
-            if ($channel == 3) {
-                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+            $variableSet = $commonVariables;
+        } else {
+            return;
+        }
+        if ($channel == 3) {
+            $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
+        } else {
+            if (is_string($variableSet[$variableKey])) {
+                $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
             } else {
-                if (is_string($commonVariables[$variableKey])) {
-                    $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+                $var = $variableSet[$variableKey];
+                if (empty($var->value)) {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
                 } else {
-                    $var = $commonVariables[$variableKey];
-                    if (empty($var->value)) {
-                        $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
-                    } else {
-                        $obj->variables = array_merge($obj->variables, [$variableKey =>$var->value]);
-                    }
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
                 }
             }
         }
     });
-
     return $obj->variables;
 }
 
