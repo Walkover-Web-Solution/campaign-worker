@@ -198,10 +198,19 @@ class ChannelService
                 break;
             case 2: //For SMS
                 $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments);
+
                 $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
-                //
+                $data = $service->getRequestBody($flow, $mongo_data, $variables);
+                // Count total mobiles
+                collect($mongo_data['mobiles'])->pluck('mobiles')->each(function ($item) use ($obj) {
+                    if (is_string($item)) {
+                        $obj->count++;
+                    } else {
+                        $obj->count += count($item);
+                    }
+                });
                 break;
             case 5: //for rcs
                 $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
@@ -221,6 +230,8 @@ class ChannelService
             $val = $res->data->unique_id;
         } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
+        } else if ($flow->channel_id == 3 && !empty($res) && !$res->hasError) {
+            $val = $res->request_id;
         } else if ($flow->channel_id == 5 && !empty($res) && !$res->hasError) {
             // for now generating random ref_id
             $val = preg_replace('/\s+/', '_',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));

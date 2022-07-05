@@ -59,8 +59,22 @@ class EmailService
             if (!empty($bcc))
                 $obj->count += count($bcc);
 
+
             //filter out variables of this flowActions template
-            $variables = array_intersect($variables, $md['variables']);
+
+            $variables = collect($variables)->map(function ($var) {
+                if (is_string($var)) {
+                    return $var;
+                } else {
+                    if (empty($var->value)) {
+                        return "";
+                    } else {
+
+                        return $var->value;
+                    }
+                }
+            })->toArray();
+            // $variables = array_intersect($variables, $md['variables']);
 
             $data = array(
                 "to" => $md['to'],
