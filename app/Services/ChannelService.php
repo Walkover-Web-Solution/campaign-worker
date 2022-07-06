@@ -171,37 +171,29 @@ class ChannelService
         /**
          * extracting the all the variables from the mongo data
          */
-        $var = $convertedData['variables'];
         $obj = new \stdClass();
         $obj->count = 0;
         // get template of this flowAction
         $temp = $flow->template;
 
-        //filter out variables of this flowActions template
-        $variables = collect($var)->map(function ($value, $key) use ($temp) {
-            if (in_array($key, $temp->variables)) {
-                return $value;
-            }
-        });
-        $variables = array_filter($variables->toArray());
         $data = [];
         $mongo_data = $convertedData;
 
         $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
-                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments, $reply_to);
+                $data = $service->getRequestBody($flow, $obj, $mongo_data,  $temp->variables, $attachments, $reply_to);
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
             case 2: //For SMS
-                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments);
+                $data = $service->getRequestBody($flow, $obj, $mongo_data);
                 $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
                 //
                 break;
             case 5: //for rcs
-                $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
+                $data = $service->getRequestBody($flow, $action_log, $mongo_data, $temp->variables, "template");
                 $obj->count = count($mongo_data['mobiles']);
                 break;
         }
