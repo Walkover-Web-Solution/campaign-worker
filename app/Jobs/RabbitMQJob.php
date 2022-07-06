@@ -108,16 +108,16 @@ class RabbitMQJob implements ShouldQueue
                         createNewJob($msg, "run_voice_campaigns");
                         break;
                     }
-                case "run_whastapp_campaigns": {
+                case "run_whatsapp_campaigns": {
                         $log_id = $msg->action_log_id;
                         $channelService = new ChannelService();
                         $channelService->sendData($log_id);
                         break;
                     }
-                case "failed_run_whastapp_campaigns": {
+                case "failed_run_whatsapp_campaigns": {
                         $log_id = $msg->action_log_id;
                         $msg->failedCount++;
-                        createNewJob($msg, "run_whastapp_campaigns");
+                        createNewJob($msg, "run_whatsapp_campaigns");
                         break;
                     }
                 case "condition_queue": {

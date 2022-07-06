@@ -431,7 +431,7 @@ function getQueue($channel_id)
         case 2:
             return 'run_sms_campaigns';
         case 3:
-            return 'run_whastapp_campaigns';
+            return 'run_whatsapp_campaigns';
         case 4:
             return 'run_voice_campaigns';
         case 5:
@@ -555,7 +555,7 @@ function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
                 updateActionLog($log_id, $failedJob->id);
                 break;
             }
-        case "run_whastapp_campaigns": {
+        case "run_whatsapp_campaigns": {
                 updateActionLog($log_id, $failedJob->id);
                 break;
             }
