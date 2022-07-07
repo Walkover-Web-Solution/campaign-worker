@@ -32,8 +32,16 @@ class RcsService
         return $obj->arr;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $action_log, $mongo_data, $variables, $function)
+    public function getRequestBody(FlowAction $flowAction, $action_log, $mongo_data, $templateVariables, $function)
     {
+        $variables = collect($mongo_data['variables'])->map(function ($value, $key) use ($templateVariables) {
+            if (in_array($key, $templateVariables)) {
+                return $value;
+            }
+        });
+        $variables = array_filter($variables->toArray());
+        $variables = array_values($variables);
+
         // make template funciton and call using switch with $function
         $confTemplate = $flowAction->configurations[0]->template;
         $customer_variables = collect($mongo_data['mobiles'])->map(function ($item) {
@@ -57,7 +65,7 @@ class RcsService
         $template = $flowAction->template;
         collect($data['customer_number_variables'])->map(function ($item) use ($variables, $obj, $template) {
             // get variables for this contact
-            $rcsVariables = getChannelVariables($template->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables);
+            $rcsVariables = getChannelVariables($template->variables, empty($item['variables']) ? [] : (array)$item['variables'], $variables, 5);
             $data = [
                 'customer_number' => $item['customer_number'],
                 'variables' => array_values($rcsVariables)

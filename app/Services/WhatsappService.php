@@ -40,7 +40,7 @@ class WhatsappService
         return $obj->arr;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $mongo_data, $variables)
+    public function getRequestBody(FlowAction $flowAction, $mongo_data)
     {
         $data = collect($mongo_data["mobiles"])->map(function ($item) {
             $mob = $item["mobiles"];
