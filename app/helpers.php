@@ -141,11 +141,12 @@ function convertBody($md, $campaign, $flow)
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
-    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
+    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
 
     $template = $flow->template;
 
-    $obj->hasChannel->map(function ($channel) use ($obj, $md, $template) {
+    $channel = $flow->channel_id;
+    if (in_array($channel, $obj->hasChannel)) {
         $service = setService($channel);
         collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
@@ -198,7 +199,7 @@ function convertBody($md, $campaign, $flow)
                     break;
             }
         });
-    });
+    }
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
