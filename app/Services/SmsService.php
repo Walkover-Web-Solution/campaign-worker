@@ -35,7 +35,7 @@ class SmsService
         return $obj->arr;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables)
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data)
     {
         $obj->mobilesArr = [];
         $template = $flowAction->template;
