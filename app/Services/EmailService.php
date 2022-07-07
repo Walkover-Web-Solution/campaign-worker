@@ -71,7 +71,7 @@ class EmailService
                 "to" => $md['to'],
                 "cc" => $cc,
                 "bcc" => $bcc,
-                "variables" => $md['variables']
+                "variables" => $variables
             );
             return $data;
         })->toArray();
