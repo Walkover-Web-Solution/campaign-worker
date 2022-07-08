@@ -187,7 +187,9 @@ function convertBody($md, $campaign, $flow)
                                 $template->variables,
                                 empty($mobile['variables']) ? [] : (array)$mobile['variables'],
                                 empty($obj->variables) ? [] : $obj->variables,
-                                $channel);
+                                $channel
+                            );
+
                             $mobile = array_merge($mobile, $smsVariables);
                             unset($mobile['variables']);
 
@@ -461,34 +463,6 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
 {
     $obj = new \stdClass();
     $obj->variables = [];
-    $arr = [];
-    if (empty($contactVariables)) {
-        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj, $channel) {
-            if (!empty($commonVariables[$variableKey])) {
-                if ($channel == 3) {
-                    $key = $commonVariables[$variableKey]->type;
-                    $arr = [
-                        "type" => $key,
-                        $key => $commonVariables[$variableKey]->value
-                    ];
-                    $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
-                } else {
-                    if (is_string($commonVariables[$variableKey])) {
-                        $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
-                    } else {
-                        $var = $commonVariables[$variableKey];
-                        if (empty($var->value)) {
-                            $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
-                        } else {
-
-                            $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
-                        }
-                    }
-                }
-            }
-        });
-        return $obj->variables;
-    }
 
     collect($templateVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
         if (!empty($contactVariables[$variableKey])) {
@@ -499,10 +473,17 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
             return;
         }
         if ($channel == 3) {
-            $key = $variableSet[$variableKey]->type;
+            if (is_string($variableSet[$variableKey])) {
+                $key = (\Str::startsWith($variableKey, 'button')) ? 'quick_reply' : 'text';
+                $value = $variableSet[$variableKey];
+            } else {
+                $key = $variableSet[$variableKey]->type;
+                $value = $variableSet[$variableKey]->value;
+            }
+
             $arr = [
                 "type" => $key,
-                $key => $variableSet[$variableKey]->value
+                $key => $value
             ];
             $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
         } else {
