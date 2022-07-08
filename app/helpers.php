@@ -141,11 +141,11 @@ function convertBody($md, $campaign, $flow)
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
-    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
+    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
 
     $template = $flow->template;
-
-    $obj->hasChannel->map(function ($channel) use ($obj, $md, $template) {
+    $channel = $flow->channel_id;
+    if (in_array($channel, $obj->hasChannel)) {
         $service = setService($channel);
         collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
@@ -200,7 +200,7 @@ function convertBody($md, $campaign, $flow)
                     break;
             }
         });
-    });
+    }
 
     $data = [
         "emails" => $obj->emails,
@@ -461,11 +461,17 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
 {
     $obj = new \stdClass();
     $obj->variables = [];
+    $arr = [];
     if (empty($contactVariables)) {
         collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj, $channel) {
             if (!empty($commonVariables[$variableKey])) {
                 if ($channel == 3) {
-                    $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+                    $key = $commonVariables[$variableKey]->type;
+                    $arr = [
+                        "type" => $key,
+                        $key => $commonVariables[$variableKey]->value
+                    ];
+                    array_push($obj->variables, [$variableKey => $arr]);
                 } else {
                     if (is_string($commonVariables[$variableKey])) {
                         $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
@@ -481,7 +487,6 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                 }
             }
         });
-
         return $obj->variables;
     }
 
@@ -494,7 +499,12 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
             return;
         }
         if ($channel == 3) {
-            $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
+            $key = $variableSet[$variableKey]->type;
+            $arr = [
+                "type" => $key,
+                $key => $variableSet[$variableKey]->value
+            ];
+            array_push($obj->variables, [$variableKey => $arr]);
         } else {
             if (is_string($variableSet[$variableKey])) {
                 $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
@@ -585,14 +595,14 @@ function updateActionLog($log_id, $failedJobId)
 }
 
 /**
- * 
+ *
  * Return a campaign event according to the event received from corresponding chhannel_id
  */
 function getEvent($event, $channel_id)
 {
 
     switch ($channel_id) {
-            //case for E-mail channel 
+            //case for E-mail channel
         case 1: {
                 $eventsynonyms = [
                     "success" => ['delivered'],

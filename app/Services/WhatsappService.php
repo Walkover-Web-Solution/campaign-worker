@@ -40,7 +40,7 @@ class WhatsappService
         return $obj->arr;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $mongo_data, $variables)
+    public function getRequestBody(FlowAction $flowAction, $mongo_data)
     {
         $data = collect($mongo_data["mobiles"])->map(function ($item) {
             $mob = $item["mobiles"];
@@ -64,7 +64,7 @@ class WhatsappService
                 "type" => "template",
                 "template" => [
                     "name" => $template->template->template_id,
-                    $template->template->language,
+                    "language" => $template->template->language,
                     "namespace" => $template->template->namespace,
                     "to_and_components" => $data
                 ]
