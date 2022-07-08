@@ -45,10 +45,9 @@ class WhatsappService
         $data = collect($mongo_data["mobiles"])->map(function ($item) {
             $mob = $item["mobiles"];
             unset($item["mobiles"]);
-            $var = $item;
             $arr = [
                 "to" => is_string($mob) ? [$mob] : $mob,
-                "components" => $var
+                "components" => $item
             ];
             return $arr;
         })->toArray();

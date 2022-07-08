@@ -181,19 +181,19 @@ function convertBody($md, $campaign, $flow)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
+
                         $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item, $channel) {
                             $smsVariables = getChannelVariables(
                                 $template->variables,
                                 empty($mobile['variables']) ? [] : (array)$mobile['variables'],
                                 empty($obj->variables) ? [] : $obj->variables,
-                                $channel
-                            );
-
+                                $channel);
                             $mobile = array_merge($mobile, $smsVariables);
                             unset($mobile['variables']);
 
                             return $mobile;
                         })->toArray();
+
                         $obj->mobiles = array_merge($obj->mobiles, $data);
                         $obj->mobileCount += count($obj->mobiles);
                     }
@@ -471,7 +471,7 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                         "type" => $key,
                         $key => $commonVariables[$variableKey]->value
                     ];
-                    array_push($obj->variables, [$variableKey => $arr]);
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
                 } else {
                     if (is_string($commonVariables[$variableKey])) {
                         $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
@@ -504,7 +504,7 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
                 "type" => $key,
                 $key => $variableSet[$variableKey]->value
             ];
-            array_push($obj->variables, [$variableKey => $arr]);
+            $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
         } else {
             if (is_string($variableSet[$variableKey])) {
                 $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
