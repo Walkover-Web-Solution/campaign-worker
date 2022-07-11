@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\RabbitMQJob;
+use App\Jobs\Campaign\RabbitMQJob;
 use App\Libs\EmailLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
