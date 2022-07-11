@@ -149,6 +149,10 @@ class RabbitMQJob implements ShouldQueue
                 case "email_to_campaign_logs": {
                         $log_id = $msg->request_id; // Event request_id is ref_id for event processing
                         $actionLog = ActionLog::where('ref_id', $log_id)->first();
+                        if (empty($actionLog)) {
+                            printLog("No action log found for ref_id: " . $log_id, 1);
+                            break;
+                        }
                         $eventService = new EventService();
                         $eventService->processEvent($actionLog, $msg, true);
                         break;
