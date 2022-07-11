@@ -46,9 +46,9 @@ class RabbitMQJob implements ShouldQueue
             $log_id = null;
             $msg = (object)$msg;
             if (empty($msg->failedCount)) {
-                $failedCount = 0;
                 $msg->failedCount = 0;
             }
+            $failedCount = $msg->failedCount;
             switch ($this->queue) {
                 case "1k_data_queue": {
                         $log_id = $msg->campaignLogId;
