@@ -474,17 +474,23 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         }
         if ($channel == 3) {
             if (is_string($variableSet[$variableKey])) {
-                $key = (\Str::startsWith($variableKey, 'button')) ? 'quick_reply' : 'text';
-                $value = $variableSet[$variableKey];
+                $arr = (\Str::startsWith($variableKey, 'button')) ? [
+                    "sub_type" => 'quick_reply',
+                    "type" => "payload"
+                ] : ["type" => 'text'];
+
+                $arr['value'] =  $variableSet[$variableKey];
             } else {
-                $key = $variableSet[$variableKey]->type;
-                $value = $variableSet[$variableKey]->value;
+                if (\Str::startsWith($variableKey, 'button')) {
+                    $arr = $variableSet[$variableKey];
+                } else {
+                    $arr = [
+                        "type" => empty($variableSet[$variableKey]->type) ? "text" : $variableSet[$variableKey]->type,
+                        "value" => empty($variableSet[$variableKey]->value) ? "" : $variableSet[$variableKey]->value
+                    ];
+                }
             }
 
-            $arr = [
-                "type" => $key,
-                $key => $value
-            ];
             $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
         } else {
             if (is_string($variableSet[$variableKey])) {
