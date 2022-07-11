@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Jobs\Campaign;
 
 use App\Models\ActionLog;
 use App\Services\ChannelService;
@@ -13,8 +13,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue;
 
 class RabbitMQJob implements ShouldQueue
 {
@@ -46,7 +44,11 @@ class RabbitMQJob implements ShouldQueue
         printLog("=============== We are in docodedData ===================", 2);
         try {
             $log_id = null;
-            $failedCount = empty($msg->failedCount) ? 0 : $msg->failedCount;
+            $msg = (object)$msg;
+            if (empty($msg->failedCount)) {
+                $failedCount = 0;
+                $msg->failedCount = 0;
+            }
             switch ($this->queue) {
                 case "1k_data_queue": {
                         $log_id = $msg->campaignLogId;
