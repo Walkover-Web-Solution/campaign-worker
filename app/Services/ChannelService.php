@@ -83,8 +83,16 @@ class ChannelService
         $convertedData = convertBody($md[0]->data->sendTo, $campaign, $flow);
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
-        printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
+        if (!$convertedData) {
+            printLog("Initializing the request body data to empty array in case of Invalid json (Whatsapp).", 2);
+            $reqBody = [
+                "count" => $action_log->no_of_records
+            ];
+            $reqBody = (object)$reqBody;
+        } else {
+            printLog("generating the request body data according to flow channel id.", 2);
+            $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
+        }
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
@@ -102,16 +110,21 @@ class ChannelService
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
         $lib = setLibrary($flow['channel_id']);
+        $res = new \stdClass();
         if ($reqBody->count == 0) {
-            $res = new \stdClass();
             $res->hasError = true;
             $res->message = "No Data Found";
         } else {
-            printLog("Now sending data to microservice", 1);
-            $res = $lib->send($reqBody->data);
-            //adding duplicate count to response
-            if (!empty($res)) {
-                $res->duplicate = $duplicateCount;
+            if (!$convertedData) {
+                $res->hasError = true;
+                $res->message = "Invalid Json!";
+            } else {
+                printLog("Now sending data to microservice", 1);
+                $res = $lib->send($reqBody->data);
+                //adding duplicate count to response
+                if (!empty($res)) {
+                    $res->duplicate = $duplicateCount;
+                }
             }
         }
         /**

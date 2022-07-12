@@ -144,17 +144,19 @@ function convertBody($md, $campaign, $flow)
     $allFlow = $campaign->flowActions()->get();
     $obj = new \stdClass();
     $obj->emailCount = 0;
+    $obj->invalid_json = false;
     $obj->mobileCount = 0;
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
+    $obj->data = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
 
     $template = $flow->template;
     $channel = $flow->channel_id;
     if (in_array($channel, $obj->hasChannel)) {
         $service = setService($channel);
-        collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
+        collect($md)->each(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
                 $obj->variables = collect($item->variables)->toArray();
             switch ($channel) {
@@ -189,28 +191,38 @@ function convertBody($md, $campaign, $flow)
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
 
-                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item, $channel) {
+                        collect($mobiles)->each(function ($mobile) use ($template, $obj, $item, $channel) {
                             $smsVariables = getChannelVariables(
                                 $template->variables,
                                 empty($mobile['variables']) ? [] : (array)$mobile['variables'],
                                 empty($obj->variables) ? [] : $obj->variables,
                                 $channel
                             );
+                            // In case of Invalid json in whatsapp
+                            if ($smsVariables == "invalid json") {
+                                $obj->invalid_json = true;
+                                return false;
+                            }
 
                             $mobile = array_merge($mobile, $smsVariables);
                             unset($mobile['variables']);
-
-                            return $mobile;
+                            array_push($obj->data, $mobile);
                         })->toArray();
 
-                        $obj->mobiles = array_merge($obj->mobiles, $data);
+                        if ($obj->invalid_json) {
+                            return false;
+                        }
+
+                        $obj->mobiles = array_merge($obj->mobiles, $obj->data);
                         $obj->mobileCount += count($obj->mobiles);
                     }
                     break;
             }
         });
     }
-
+    if ($obj->invalid_json) {
+        return false;
+    }
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
@@ -470,8 +482,9 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
 {
     $obj = new \stdClass();
     $obj->variables = [];
+    $obj->invalid_json = false;
 
-    collect($templateVariables)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
+    collect($templateVariables)->each(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
         if (!empty($contactVariables[$variableKey])) {
             $variableSet = $contactVariables;
         } else if (!empty($commonVariables[$variableKey])) {
@@ -481,17 +494,32 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         }
         if ($channel == 3) {
             if (is_string($variableSet[$variableKey])) {
-                $key = (\Str::startsWith($variableKey, 'button')) ? 'quick_reply' : 'text';
-                $value = $variableSet[$variableKey];
+                if ((\Str::startsWith($variableKey, 'button'))) {
+                    // In case of wrong body of button variable
+                    $obj->invalid_json = true;
+                    return false;
+                }
+
+                $arr = [
+                    "type" => 'text',
+                    'value' => $variableSet[$variableKey]
+                ];
             } else {
-                $key = $variableSet[$variableKey]->type;
-                $value = $variableSet[$variableKey]->value;
+                if (\Str::startsWith($variableKey, 'button')) {
+                    // In case of wrong body of button variable
+                    if (empty($variableSet[$variableKey]->sub_type) || empty($variableSet[$variableKey]->type) || empty($variableSet[$variableKey]->value)) {
+                        $obj->invalid_json = true;
+                        return false;
+                    }
+                    $arr = $variableSet[$variableKey];
+                } else {
+                    $arr = [
+                        "type" => empty($variableSet[$variableKey]->type) ? "text" : $variableSet[$variableKey]->type,
+                        "value" => empty($variableSet[$variableKey]->value) ? "" : $variableSet[$variableKey]->value
+                    ];
+                }
             }
 
-            $arr = [
-                "type" => $key,
-                $key => $value
-            ];
             $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
         } else {
             if (is_string($variableSet[$variableKey])) {
@@ -506,6 +534,9 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
             }
         }
     });
+    if ($obj->invalid_json) {
+        return "invalid json";
+    }
     return $obj->variables;
 }
 
