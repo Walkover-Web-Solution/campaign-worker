@@ -31,12 +31,13 @@ class WhatsappService
                 } else {
                     return $mobile;
                 }
-                // // return collect($value)->only('mobiles', 'variables')->toArray();
+                
             })->filter()->toArray();
 
             $obj->arr = array_merge($obj->arr, $mob);
         });
-        array_push($obj->arr, ["mobiles" => $obj->mob]);
+        if (!empty($obj->mob))
+            array_push($obj->arr, ["mobiles" => $obj->mob]);
         return $obj->arr;
     }
 
