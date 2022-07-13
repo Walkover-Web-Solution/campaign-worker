@@ -61,6 +61,7 @@ class SmsLib
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
+            "request" => $input,
         );
         logTest("sms response", $logData);
         return $res;
