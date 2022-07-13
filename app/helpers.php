@@ -149,7 +149,6 @@ function convertBody($md, $campaign, $flow)
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
-    $obj->data = [];
     $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
 
     $template = $flow->template;
@@ -190,7 +189,7 @@ function convertBody($md, $campaign, $flow)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-
+                        $obj->data = [];
                         collect($mobiles)->each(function ($mobile) use ($template, $obj, $item, $channel) {
                             $smsVariables = getChannelVariables(
                                 $template->variables,
