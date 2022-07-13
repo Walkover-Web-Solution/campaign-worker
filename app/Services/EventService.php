@@ -53,6 +53,8 @@ class EventService
         // Filter data according to events
         $filteredData = $this->getEventFilteredData($requestBody->data, $channel_id, $mongo_data);
 
+        logTest("email webhook filtered body", ["data" => $filteredData],"event");
+        
         $obj = new \stdClass();
         $obj->noActionFoundFlag = true;
         $obj->loop = false;

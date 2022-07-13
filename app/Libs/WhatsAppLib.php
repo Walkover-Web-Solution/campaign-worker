@@ -48,13 +48,13 @@ class WhatsAppLib
             ->asJsonResponse()
             ->$method();
 
-            $logData = array(
+        $logData = array(
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
         );
         logTest("Whatsapp response", $logData);
-    
+
         return $res;
     }
 }
