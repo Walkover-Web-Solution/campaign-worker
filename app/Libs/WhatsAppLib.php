@@ -52,6 +52,7 @@ class WhatsAppLib
             "endpoint" => $endpoint,
             "authorization" => $authorization,
             "res" => $res,
+            "request" => $input,
         );
         logTest("Whatsapp response", $logData);
 
