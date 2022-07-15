@@ -119,7 +119,6 @@ class ChannelService
                 }
                 break;
         }
-        dd( $reqBody->count);
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
