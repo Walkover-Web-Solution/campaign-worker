@@ -103,9 +103,9 @@ class ChannelService
                     //filter duplicate
                     $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
                     //new count after removing duplicate
-                    $reqBody->count = count($reqBody->data->recipients);
+                    $count = count($reqBody->data->recipients);
                     //calculating duplicate
-                    $duplicateCount -= $reqBody->count;
+                    $duplicateCount -= $count;
                 }
                 break;
             case 2: {
@@ -119,6 +119,7 @@ class ChannelService
                 }
                 break;
         }
+        dd( $reqBody->count);
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
