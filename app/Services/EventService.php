@@ -51,10 +51,8 @@ class EventService
         $mongo_data = json_decode(json_encode($mongo_data))[0];
 
         // Filter data according to events
-        $filteredData = $this->getEventFilteredData($requestBody->data, $channel_id, $mongo_data);
-
-        logTest("email webhook filtered body", ["data" => $filteredData],"event");
-        
+        $filteredData = $this->getEventFilteredData($requestBody->data, $channel_id, $mongo_data, $action_log);
+        logTest("email webhook filtered body", ["data" => $filteredData], "event");
         $obj = new \stdClass();
         $obj->noActionFoundFlag = true;
         $obj->loop = false;
@@ -108,10 +106,12 @@ class EventService
     /**
      * Filters data from webhook, according to event
      */
-    public function getEventFilteredData($requestData, $channel_id, $mongo_data)
+    public function getEventFilteredData($requestData, $channel_id, $mongo_data, $action_log)
     {
         $obj = new \stdClass();
         $obj->data = [];
+        $obj->count = 0;
+        $obj->sendTo = $mongo_data->data->sendTo;
         $obj->data['success'] = [];
         $obj->data['failed'] = [];
         $obj->data['read'] = [];
@@ -119,49 +119,72 @@ class EventService
 
         collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
             $item = (object)$item;
-            collect($mongo_data->data->sendTo)->map(function ($sendToItem, $key) use ($obj, $item, $channel_id) {
-                collect($sendToItem)->map(function ($contacts, $field) use ($obj, $item, $channel_id, $key) {
-                    if ($field != 'variables') {
-                        if ($channel_id == 1) {
-                            $contact = (array)collect($contacts)->firstWhere('email', $item->email);
-                        } else {
-                            $contact = (array)collect($contacts)->firstWhere('mobiles', $item->mobile);
-                        }
-                        // Add all events in condition which are recieved from microservices
-                        if (!empty($contact)) {
+            $event = strtolower($item->event);
+            $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
+            if ($event != 'queued') {
+                collect($mongo_data->data->sendTo)->map(function ($sendToItem, $key) use ($obj, $item, $channel_id, $event) {
+                    collect($sendToItem)->map(function ($contacts, $field) use ($obj, $item, $channel_id, $key, $event) {
+                        if ($field != 'variables') {
+                            //Iterating each and every data of the inner body of To or CC or BCC
+                            collect($contacts)->each(function ($Senditem, $innerindex) use ($obj, $item, $channel_id, $key, $event, $field) {
+                                $contact = [];
+                                if ($channel_id == 1) {
+                                    if ($Senditem->email == $item->email && empty($obj->sendTo[$key]->$field[$innerindex]->event_recived)) {
+                                        $contact = (array)$Senditem;
+                                        //Assigning the event_recived key to the body for the updation in MongoDB and maintaing the count of the records recived event 
+                                        $obj->sendTo[$key]->$field[$innerindex]->event_recived = 'true';
+                                        $obj->count++;
+                                    }
+                                } else {
+                                    // mobile whatsapp case to be considered 
+
+                                    // $contact = (array)collect($contacts)->firstWhere('mobiles', $item->mobile);
+                                }
+                                if (!empty($contact)) {
+                                    //Genreating body on basis of event for further operations
+                                    if ($event == 'success') {
+                                        if (empty($obj->data['success'][$key][$field]))
+                                            $obj->data['success'][$key][$field] = [];
+                                        array_push($obj->data['success'][$key][$field], $contact);
+                                    } else if ($event == 'failed') {
+                                        if (empty($obj->data['failed'][$key][$field]))
+                                            $obj->data['failed'][$key][$field] = [];
+                                        array_push($obj->data['failed'][$key][$field], $contact);
+                                    } else if ($event == 'read') {
+                                        if (empty($obj->data['read'][$key][$field]))
+                                            $obj->data['read'][$key][$field] = [];
+                                        array_push($obj->data['read'][$key][$field], $contact);
+                                    } else if ($event == 'unread') {
+                                        if (empty($obj->data['unread'][$key][$field]))
+                                            $obj->data['unread'][$key][$field] = [];
+                                        array_push($obj->data['unread'][$key][$field], $contact);
+                                    }
+                                }
+                            });
+                        } else if ($field == 'variables') {
                             $event = strtolower($item->event);
-                            $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
-                            if ($event == 'success') {
-                                if (empty($obj->data['success'][$key][$field]))
-                                    $obj->data['success'][$key][$field] = [];
-                                array_push($obj->data['success'][$key][$field], $contact);
-                            } else if ($event == 'failed') {
-                                if (empty($obj->data['failed'][$key][$field]))
-                                    $obj->data['failed'][$key][$field] = [];
-                                array_push($obj->data['failed'][$key][$field], $contact);
-                            } else if ($event == 'read') {
-                                if (empty($obj->data['read'][$key][$field]))
-                                    $obj->data['read'][$key][$field] = [];
-                                array_push($obj->data['read'][$key][$field], $contact);
-                            } else if ($event == 'unread') {
-                                if (empty($obj->data['unread'][$key][$field]))
-                                    $obj->data['unread'][$key][$field] = [];
-                                array_push($obj->data['unread'][$key][$field], $contact);
+                            if (empty($obj->data[$event])) {
+                                return;
                             }
+                            if (empty($obj->data[$event][$key][$field])) {
+                                $obj->data[$event][$key][$field] = [];
+                            }
+                            $obj->data[$event][$key][$field] = array_merge($obj->data[$event][$key][$field], (array)$contacts);
                         }
-                    } else if ($field == 'variables') {
-                        $event = strtolower($item->event);
-                        if (empty($obj->data[$event])) {
-                            return;
-                        }
-                        if (empty($obj->data[$event][$key][$field])) {
-                            $obj->data[$event][$key][$field] = [];
-                        }
-                        $obj->data[$event][$key][$field] = array_merge($obj->data[$event][$key][$field], (array)$contacts);
-                    }
-                });
-            });
+                    })->toArray();
+                })->toArray();
+            }
         });
+        //Updating the changed body with event_recived key in MongoDB 
+        $this->mongo->collection('flow_action_data')->update(["requestId" => $mongo_data->requestId], ["data.sendTo" => $obj->sendTo]);
+
+        //Updating the count of the records received events inn action log
+        $value = $action_log->event_recieved;
+        $action_log->event_recieved = $value + $obj->count;
+        if ($action_log->event_recieved >= $action_log->no_of_records)
+            $action_log->is_complete = true;
+        $action_log->save();
+
         return $obj->data;
     }
 
