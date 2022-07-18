@@ -254,9 +254,9 @@ function updateCampaignLogStatus(CampaignLog $campaignLog)
     }
 
     printLog("fetching count for actionLogs with iscomplete true for campaignLog id : " . $campaignLog->id);
-    $iscompleteCount = $campaignLog->actionLogs()->where('is_complete', 1)->count();
+    $SuccesslogCount = $campaignLog->actionLogs()->where('status', 'Success')->count();
 
-    if ($iscompleteCount == $actionLogsCount) {
+    if ($SuccesslogCount == $actionLogsCount) {
         $campaignLog->status = "Complete";
         $campaignLog->save();
         printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
