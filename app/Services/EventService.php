@@ -111,80 +111,75 @@ class EventService
         $obj = new \stdClass();
         $obj->data = [];
         $obj->count = 0;
+        $obj->contactCount = 0;
         $obj->sendTo = $mongo_data->data->sendTo;
         $obj->data['success'] = [];
         $obj->data['failed'] = [];
         $obj->data['read'] = [];
         $obj->data['unread'] = [];
 
-        collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
-            $item = (object)$item;
-            $event = strtolower($item->event);
-            $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
-            if ($event != 'queued') {
-                collect($mongo_data->data->sendTo)->map(function ($sendToItem, $key) use ($obj, $item, $channel_id, $event) {
-                    collect($sendToItem)->map(function ($contacts, $field) use ($obj, $item, $channel_id, $key, $event) {
-                        if ($field != 'variables') {
-                            //Iterating each and every data of the inner body of To or CC or BCC
-                            collect($contacts)->each(function ($Senditem, $innerindex) use ($obj, $item, $channel_id, $key, $event, $field) {
+        switch ($channel_id) {
+            case 1: {
+                    collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
+                        $item = (object)$item;
+                        $event = strtolower($item->event);
+                        $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
+                        if ($event != 'queued') {
+                            $obj->count = 0;
+                            collect($mongo_data->data->sendTo)->map(function ($sendToItem) use ($obj, $item, $event) {
                                 $contact = [];
-                                if ($channel_id == 1) {
-                                    if ($Senditem->email == $item->email && empty($obj->sendTo[$key]->$field[$innerindex]->event_recived)) {
-                                        $contact = (array)$Senditem;
-                                        //Assigning the event_recived key to the body for the updation in MongoDB and maintaing the count of the records recived event 
-                                        $obj->sendTo[$key]->$field[$innerindex]->event_recived = 'true';
-                                        $obj->count++;
+                                if ($sendToItem->to[0]->email == $item->email ) {
+                                    $contact = (array)$sendToItem;
+                                    if(!empty($sendToItem->to))
+                                    {
+                                        $obj->contactCount+=count($sendToItem->to);
                                     }
-                                } else {
-                                    // mobile whatsapp case to be considered 
+                                    if(!empty($sendToItem->cc))
+                                    {
+                                        $obj->contactCount+=count($sendToItem->cc);
+                                    }
+                                    if(!empty($sendToItem->bcc))
+                                    {
+                                        $obj->contactCount+=count($sendToItem->bcc);
+                                    }
+                                    $obj->sendTo[$obj->count]->to[0]->event_received = true;
 
-                                    // $contact = (array)collect($contacts)->firstWhere('mobiles', $item->mobile);
-                                }
-                                if (!empty($contact)) {
-                                    //Genreating body on basis of event for further operations
-                                    if ($event == 'success') {
-                                        if (empty($obj->data['success'][$key][$field]))
-                                            $obj->data['success'][$key][$field] = [];
-                                        array_push($obj->data['success'][$key][$field], $contact);
-                                    } else if ($event == 'failed') {
-                                        if (empty($obj->data['failed'][$key][$field]))
-                                            $obj->data['failed'][$key][$field] = [];
-                                        array_push($obj->data['failed'][$key][$field], $contact);
-                                    } else if ($event == 'read') {
-                                        if (empty($obj->data['read'][$key][$field]))
-                                            $obj->data['read'][$key][$field] = [];
-                                        array_push($obj->data['read'][$key][$field], $contact);
-                                    } else if ($event == 'unread') {
-                                        if (empty($obj->data['unread'][$key][$field]))
-                                            $obj->data['unread'][$key][$field] = [];
-                                        array_push($obj->data['unread'][$key][$field], $contact);
+                                    if (!empty($contact)) {
+                                        //Genreating body on basis of event for further operations
+                                        if ($event == 'success') {
+                                            array_push($obj->data['success'], $contact);
+                                        } else if ($event == 'failed') {
+                                            array_push($obj->data['failed'], $contact);
+                                        } else if ($event == 'read') {
+                                            array_push($obj->data['read'], $contact);
+                                        } else if ($event == 'unread') {
+                                            array_push($obj->data['unread'], $contact);
+                                        }
+    
                                     }
                                 }
-                            });
-                        } else if ($field == 'variables') {
-                            $event = strtolower($item->event);
-                            if (empty($obj->data[$event])) {
-                                return;
-                            }
-                            if (empty($obj->data[$event][$key][$field])) {
-                                $obj->data[$event][$key][$field] = [];
-                            }
-                            $obj->data[$event][$key][$field] = array_merge($obj->data[$event][$key][$field], (array)$contacts);
+                                $obj->count++;
+                                
+                            })->toArray();
                         }
                     })->toArray();
-                })->toArray();
-            }
-        });
+                }
+                break;
+            case 2: {
+                    //
+                }
+                break;
+        }
+
         //Updating the changed body with event_recived key in MongoDB 
         $this->mongo->collection('flow_action_data')->update(["requestId" => $mongo_data->requestId], ["data.sendTo" => $obj->sendTo]);
 
         //Updating the count of the records received events inn action log
         $value = $action_log->event_recieved;
-        $action_log->event_recieved = $value + $obj->count;
+        $action_log->event_recieved = $value + $obj->contactCount;
         if ($action_log->event_recieved >= $action_log->no_of_records)
-            $action_log->is_complete = true;
+            $action_log->status = "Completed";
         $action_log->save();
-
         return $obj->data;
     }
 
@@ -195,7 +190,6 @@ class EventService
     {
         // As per change in sendTo to make everyobject into one request, FilterData will be send in sendTo key
         $filteredData = ['sendTo' => array_values($filteredData)];
-
         // generating random key with time stamp for mongo requestId
         $reqId = preg_replace('/\s+/', '', Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
 
