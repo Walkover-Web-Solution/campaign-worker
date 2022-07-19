@@ -599,7 +599,7 @@ function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
 function updateCampaignLog($log_id, $failedJobId)
 {
     $campaignLog = CampaignLog::where('id', $log_id)->first();
-    $campaignLog->status = 'Failed -' . $failedJobId;
+    $campaignLog->status = 'Error - ' . $failedJobId;
     $campaignLog->save();
 }
 function updateActionLog($log_id, $failedJobId)
