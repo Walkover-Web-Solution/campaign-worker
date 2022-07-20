@@ -65,4 +65,12 @@ class ActionLog extends Model
     {
         return $this->belongsTo(CampaignLog::class, 'campaign_log_id');
     }
+
+    /**
+     * Get the ref_ids that owns the ActionLog
+     */
+    public function ref_id()
+    {
+        return $this->hasMany(ActionLogRefIdRelation::class);
+    }
 }
