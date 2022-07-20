@@ -575,10 +575,16 @@ function getRecipients($reqBodyData, $channel_id)
         case 3: {
                 return $reqBodyData->payload->template->to_and_components;
             }
+        case 4: {
+                return [];
+            }
+        case 5: {
+                return $reqBodyData->customer_number_variables;
+            }
     }
 }
 
-function getRecipientCount($recipients, $channel_id)
+function getRecipientCount($recipients, $channel_id, $test = false)
 {
     switch ($channel_id) {
         case 1: {
@@ -589,6 +595,12 @@ function getRecipientCount($recipients, $channel_id)
             }
         case 3: {
                 return count($recipients->to);
+            }
+        case 4: {
+                return count($recipients);
+            }
+        case 5: {
+                return count($recipients->customer_number);
             }
     }
 }

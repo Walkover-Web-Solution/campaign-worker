@@ -118,7 +118,7 @@ class ChannelService
         $action_log->save();
 
         $channel_type = ChannelType::where('id', $flowAction->channel_id)->first();
-        $maxCount = 10;
+        $maxCount = 1000;
         if (!empty($channel_type)) {
             $maxCount = $channel_type->capacity;
         }
@@ -135,14 +135,16 @@ class ChannelService
                 $count += $recipientCount;
                 if ($count > $maxCount) {
                     $currentCount = $count - $recipientCount;
-                    $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $temp, $flowAction, $duplicateCount, $action_log, $invalidJson);
+                    // Set duplicate count to zero if sending in bunch but give in next calling for this function
+                    $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $temp, $flowAction, 0, $action_log, $invalidJson);
                     $this->nextJob($flowAction, $action_log, $statusANDref_id->status, $statusANDref_id->ref_id, $md, $campaignLog, $temp);
                     $count = 0;
                     $temp = [];
                 }
                 array_push($temp, $recipients);
             }
-            $currentCount = $recipientCount;
+            // For last set of bunch - currentCount will be remainder of totalCount by maxCount
+            $currentCount = $reqBody->count % $maxCount;
             $payload = $temp;
         }
         $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $payload, $flowAction, $duplicateCount, $action_log, $invalidJson);
@@ -166,6 +168,14 @@ class ChannelService
                     break;
                 case 3: {
                         $sendData->payload->template->to_and_components = $temp;
+                    }
+                    break;
+                case 4: {
+                        return;
+                    }
+                    break;
+                case 5: {
+                        $sendData->customer_number_variables = $temp;
                     }
                     break;
             }
@@ -306,8 +316,8 @@ class ChannelService
                 });
                 break;
             case 5: //for rcs
-                $data = $service->getRequestBody($flowAction, $action_log, $mongo_data, $temp->variables, "template");
-                $obj->count = count($mongo_data['mobiles']);
+                $data = $service->getRequestBody($flowAction, $obj, $action_log, $mongo_data, $temp->variables, "template");
+                $obj->count = count($data['customer_number_variables']);
                 break;
         }
 
@@ -350,20 +360,13 @@ class ChannelService
             }
         }
 
-        // Update path in mongo - REMOVE(comment)
-        // $this->mongo->collection('flow_action_data')
-        //     ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
+        // Update path in mongo
+        $this->mongo->collection('flow_action_data')
+            ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
 
         if (!$loop_detected) {
             return 'create_webhook';
         }
-
-        // if ($status != "Failed") {
-        //     if (!$loop_detected)
-        //         if ($flowAction->channel_id == 1 || $flowAction->channel_id == 5) {
-        //             return;
-        //         }
-        // }
 
         printLog('Get status from microservice ' . $status, 1);
         printLog("Events are ", 1, $events);
@@ -434,11 +437,16 @@ class ChannelService
                 }
                 break;
             case 4: {
-                    //
+                    return;
                 }
                 break;
             case 5: {
-                    //
+                    $data = collect($recipients)->map(function ($mobiles) use ($status) {
+                        return [
+                            "mobile" => $mobiles->customer_number[0],
+                            "event" => $status
+                        ];
+                    })->toArray();
                 }
                 break;
             default:
