@@ -20,11 +20,13 @@ class ActionLog extends Model
         'created_at',
         'updated_at',
         'campaign_log_id',
+        "action_id",
         'event_recieved'
     ];
 
     protected $casts = [
-        'response' => 'json'
+        'response' => 'json',
+        'action_id'=>'json'
     ];
 
     /**

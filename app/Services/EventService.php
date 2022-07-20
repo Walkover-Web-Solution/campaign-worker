@@ -27,14 +27,16 @@ class EventService
         }
         if (!$noMongo) {
             $requestBody = $this->mongo->collection('event_action_data')->find([
-                'requestId' => $eventMongoId
+                'request_id' => $eventMongoId
             ]);
+
             $requestBody = json_decode(json_encode($requestBody))[0]->data;
+            $requestBody=(object)["data"=>$requestBody];
+            // In case of RCS
+            // $campaign_id_split = explode('_', $requestBody->campaign_id);
+            // $actionLogId = $campaign_id_split[0];
 
-            $campaign_id_split = explode('_', $requestBody->campaign_id);
-            $actionLogId = $campaign_id_split[0];
-
-            $action_log = ActionLog::where('id', (int)$actionLogId)->first();
+            $action_log = ActionLog::where('ref_id', $eventMongoId)->first();
         } else {
             // In case of email eventMongoId will be action_log model from queue : 'email_to_campaign_logs'
             $action_log = $eventMongoId;
@@ -43,7 +45,6 @@ class EventService
             throw new \Exception('Action Log not found!');
         }
         $channel_id = $action_log->flowAction()->first()->channel_id;
-
         // Fetch data from mongo
         $mongo_data = $this->mongo->collection('flow_action_data')->find([
             'requestId' => $action_log->mongo_id
@@ -69,7 +70,25 @@ class EventService
                         $delayTime = collect($flowAction->configurations)->firstWhere('name', 'delay');
                         $delayValue = getSeconds($delayTime->unit, $delayTime->value);
                         // create next action_log
-                        $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]], $mongo_data);
+                        $type = '$push';
+                        if (empty($action_log->action_id[$keySplit[1]])) {
+                            $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]], $mongo_data);
+                            if ($action_log->action_id == []) {
+                                $action_log->action_id = [$keySplit[1] => $next_action_log->id];
+                            } else {
+                                $action_log->action_id = array_merge($action_log->action_id, [$keySplit[1] => $next_action_log->id]);
+                            }
+                            // dd($next_action_log);
+                            // dd("here");
+                            $action_log->save();
+                            $type = '$set';
+                        }
+                        $next_action_log = ActionLog::where('id', $action_log->action_id[$keySplit[1]])->first();
+                        if ($type == '$push') {
+
+                            $filteredData[$keySplit[1]] = $filteredData[$keySplit[1]][0];
+                        }
+                        $data = $this->mongo->collection('flow_action_data')->append(["requestId" => $next_action_log->mongo_id], ['data.sendTo' => $filteredData[$keySplit[1]]], $type);
 
                         if (!empty($next_action_log)) {
                             // If loop detected next_action_log's status will be Stopped
@@ -128,22 +147,18 @@ class EventService
                             $obj->count = 0;
                             collect($mongo_data->data->sendTo)->map(function ($sendToItem) use ($obj, $item, $event) {
                                 $contact = [];
-                                if ($sendToItem->to[0]->email == $item->email ) {
+                                if ($sendToItem->to[0]->email == $item->email && empty($obj->sendTo[$obj->count]->event_received)) {
                                     $contact = (array)$sendToItem;
-                                    if(!empty($sendToItem->to))
-                                    {
-                                        $obj->contactCount+=count($sendToItem->to);
+                                    if (!empty($sendToItem->to)) {
+                                        $obj->contactCount += collect($sendToItem->to)->whereNotNull('email')->count();
                                     }
-                                    if(!empty($sendToItem->cc))
-                                    {
-                                        $obj->contactCount+=count($sendToItem->cc);
+                                    if (!empty($sendToItem->cc)) {
+                                        $obj->contactCount += collect($sendToItem->cc)->whereNotNull('email')->count();
                                     }
-                                    if(!empty($sendToItem->bcc))
-                                    {
-                                        $obj->contactCount+=count($sendToItem->bcc);
+                                    if (!empty($sendToItem->bcc)) {
+                                        $obj->contactCount += collect($sendToItem->bcc)->whereNotNull('email')->count();
                                     }
-                                    $obj->sendTo[$obj->count]->to[0]->event_received = true;
-
+                                    $obj->sendTo[$obj->count]->event_received = true;
                                     if (!empty($contact)) {
                                         //Genreating body on basis of event for further operations
                                         if ($event == 'success') {
@@ -155,20 +170,48 @@ class EventService
                                         } else if ($event == 'unread') {
                                             array_push($obj->data['unread'], $contact);
                                         }
-    
                                     }
                                 }
                                 $obj->count++;
-                                
                             })->toArray();
                         }
                     })->toArray();
                 }
                 break;
-            case 2: {
-                    //
+            default: {
+                    //In case of SMS , whatsapp , RCS 
+                    collect($requestData)->map(function ($item) use ($mongo_data, $obj, $channel_id) {
+                        $item = (object)$item;
+                        $event = strtolower($item->event);
+                        $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
+                        if ($event != 'queued') {
+                            $obj->count = 0;
+                            collect($mongo_data->data->sendTo)->map(function ($sendToItem) use ($obj, $item, $event) {
+                                $contact = [];
+                                if ($sendToItem->to[0]->mobiles == $item->mobile && empty($obj->sendTo[$obj->count]->event_received)) {
+                                    $contact = (array)$sendToItem;
+                                    if (!empty($sendToItem->to)) {
+                                        $obj->contactCount += collect($sendToItem->to)->whereNotNull('mobiles')->count();
+                                    }
+                                    $obj->sendTo[$obj->count]->event_received = true;
+                                    if (!empty($contact)) {
+                                        //Genreating body on basis of event for further operations
+                                        if ($event == 'success') {
+                                            array_push($obj->data['success'], $contact);
+                                        } else if ($event == 'failed') {
+                                            array_push($obj->data['failed'], $contact);
+                                        } else if ($event == 'read') {
+                                            array_push($obj->data['read'], $contact);
+                                        } else if ($event == 'unread') {
+                                            array_push($obj->data['unread'], $contact);
+                                        }
+                                    }
+                                }
+                                $obj->count++;
+                            })->toArray();
+                        }
+                    })->toArray();
                 }
-                break;
         }
 
         //Updating the changed body with event_recived key in MongoDB 
