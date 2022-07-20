@@ -18,31 +18,28 @@ class SmsService
         //
     }
 
-    public function createRequestBody($data)
-    {
-        unset($data->variables);
-        $obj = new \stdClass();
-        $obj->arr = [];
-        collect($data)->map(function ($item) use ($obj) {
-
-            $mob = collect($item)->map(function ($value) {
-                return collect($value)->only('mobiles', 'variables')->toArray();
-            })->toArray();
-
-            $obj->arr = array_merge($obj->arr, $mob);
-        });
-
-        return $obj->arr;
-    }
-
     public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data)
     {
-        $obj->mobilesArr = [];
         $template = $flowAction->template;
+
+        $obj->mobiles = [];
+        collect($mongo_data)->map(function ($data) use ($obj, $template, $flowAction) {
+            $commonVariables = empty($data->variables) ? [] : $data->variables;
+            collect($data->to)->map(function ($contact) use ($obj, $template, $commonVariables, $flowAction) {
+                if (!empty($contact->mobiles)) {
+                    $contactVariables = empty($contact->variables) ? [] : $contact->variables;
+                    $smsVariables = getChannelVariables($template->variables, $contactVariables, $commonVariables, $flowAction->channel_id);
+                    array_push($obj->mobiles, [
+                        "mobiles" => $contact->mobiles,
+                        "variables" => $smsVariables
+                    ]);
+                }
+            });
+        });
 
         return [
             "flow_id" => $template->template_id,
-            'recipients' => collect($mongo_data['mobiles']),
+            'recipients' => $obj->mobiles,
             "short_url" => true,
             "node_id" => (string)$flowAction['id']
         ];
