@@ -31,7 +31,7 @@ class EventService
             ]);
 
             $requestBody = json_decode(json_encode($requestBody))[0]->data;
-            $requestBody=(object)["data"=>$requestBody];
+            $requestBody = (object)["data" => $requestBody];
             // In case of RCS
             // $campaign_id_split = explode('_', $requestBody->campaign_id);
             // $actionLogId = $campaign_id_split[0];
@@ -147,32 +147,34 @@ class EventService
                             $obj->count = 0;
                             collect($mongo_data->data->sendTo)->map(function ($sendToItem) use ($obj, $item, $event) {
                                 $contact = [];
-                                if ($sendToItem->to[0]->email == $item->email && empty($obj->sendTo[$obj->count]->event_received)) {
-                                    $contact = (array)$sendToItem;
-                                    if (!empty($sendToItem->to)) {
-                                        $obj->contactCount += collect($sendToItem->to)->whereNotNull('email')->count();
-                                    }
-                                    if (!empty($sendToItem->cc)) {
-                                        $obj->contactCount += collect($sendToItem->cc)->whereNotNull('email')->count();
-                                    }
-                                    if (!empty($sendToItem->bcc)) {
-                                        $obj->contactCount += collect($sendToItem->bcc)->whereNotNull('email')->count();
-                                    }
-                                    $obj->sendTo[$obj->count]->event_received = true;
-                                    if (!empty($contact)) {
-                                        //Genreating body on basis of event for further operations
-                                        if ($event == 'success') {
-                                            array_push($obj->data['success'], $contact);
-                                        } else if ($event == 'failed') {
-                                            array_push($obj->data['failed'], $contact);
-                                        } else if ($event == 'read') {
-                                            array_push($obj->data['read'], $contact);
-                                        } else if ($event == 'unread') {
-                                            array_push($obj->data['unread'], $contact);
+                                if (!empty($sendToItem->to[0]->email)) {
+                                    if ($sendToItem->to[0]->email == $item->email && empty($obj->sendTo[$obj->count]->event_received)) {
+                                        $contact = (array)$sendToItem;
+                                        if (!empty($sendToItem->to)) {
+                                            $obj->contactCount += collect($sendToItem->to)->whereNotNull('email')->count();
+                                        }
+                                        if (!empty($sendToItem->cc)) {
+                                            $obj->contactCount += collect($sendToItem->cc)->whereNotNull('email')->count();
+                                        }
+                                        if (!empty($sendToItem->bcc)) {
+                                            $obj->contactCount += collect($sendToItem->bcc)->whereNotNull('email')->count();
+                                        }
+                                        $obj->sendTo[$obj->count]->event_received = true;
+                                        if (!empty($contact)) {
+                                            //Genreating body on basis of event for further operations
+                                            if ($event == 'success') {
+                                                array_push($obj->data['success'], $contact);
+                                            } else if ($event == 'failed') {
+                                                array_push($obj->data['failed'], $contact);
+                                            } else if ($event == 'read') {
+                                                array_push($obj->data['read'], $contact);
+                                            } else if ($event == 'unread') {
+                                                array_push($obj->data['unread'], $contact);
+                                            }
                                         }
                                     }
+                                    $obj->count++;
                                 }
-                                $obj->count++;
                             })->toArray();
                         }
                     })->toArray();
@@ -186,28 +188,31 @@ class EventService
                         $event = strtolower(getEvent($event, $channel_id)); // get synnonym of respected microservice's event which are available in events table
                         if ($event != 'queued') {
                             $obj->count = 0;
+
                             collect($mongo_data->data->sendTo)->map(function ($sendToItem) use ($obj, $item, $event) {
                                 $contact = [];
-                                if ($sendToItem->to[0]->mobiles == $item->mobile && empty($obj->sendTo[$obj->count]->event_received)) {
-                                    $contact = (array)$sendToItem;
-                                    if (!empty($sendToItem->to)) {
-                                        $obj->contactCount += collect($sendToItem->to)->whereNotNull('mobiles')->count();
-                                    }
-                                    $obj->sendTo[$obj->count]->event_received = true;
-                                    if (!empty($contact)) {
-                                        //Genreating body on basis of event for further operations
-                                        if ($event == 'success') {
-                                            array_push($obj->data['success'], $contact);
-                                        } else if ($event == 'failed') {
-                                            array_push($obj->data['failed'], $contact);
-                                        } else if ($event == 'read') {
-                                            array_push($obj->data['read'], $contact);
-                                        } else if ($event == 'unread') {
-                                            array_push($obj->data['unread'], $contact);
+                                if (!empty($sendToItem->to[0]->mobiles)) {
+                                    if ($sendToItem->to[0]->mobiles == $item->mobile && empty($obj->sendTo[$obj->count]->event_received)) {
+                                        $contact = (array)$sendToItem;
+                                        if (!empty($sendToItem->to)) {
+                                            $obj->contactCount += collect($sendToItem->to)->whereNotNull('mobiles')->count();
+                                        }
+                                        $obj->sendTo[$obj->count]->event_received = true;
+                                        if (!empty($contact)) {
+                                            //Genreating body on basis of event for further operations
+                                            if ($event == 'success') {
+                                                array_push($obj->data['success'], $contact);
+                                            } else if ($event == 'failed') {
+                                                array_push($obj->data['failed'], $contact);
+                                            } else if ($event == 'read') {
+                                                array_push($obj->data['read'], $contact);
+                                            } else if ($event == 'unread') {
+                                                array_push($obj->data['unread'], $contact);
+                                            }
                                         }
                                     }
+                                    $obj->count++;
                                 }
-                                $obj->count++;
                             })->toArray();
                         }
                     })->toArray();
