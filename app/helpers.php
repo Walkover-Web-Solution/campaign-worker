@@ -156,17 +156,17 @@ function convertAttachments($attachments)
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
 {
-    $actionLogs = $campaignLog->actionLogs()->get()->toArray();
-    if (empty($actionLogs)) {
+    $actionLogsCount = $campaignLog->actionLogs()->count();
+    if ($actionLogsCount == 0) {
         printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
         return;
     }
 
-    printLog("fetching count for actionLogs with status pending for campaignLog id : " . $campaignLog->id);
-    $pendingCount = $campaignLog->actionLogs()->where('status', 'pending')->count();
+    printLog("fetching count for actionLogs with iscomplete true for campaignLog id : " . $campaignLog->id);
+    $SuccesslogCount = $campaignLog->actionLogs()->where('status', 'Completed')->count();
 
-    if ($pendingCount == 0) {
-        $campaignLog->status = "Complete";
+    if ($SuccesslogCount == $actionLogsCount) {
+        $campaignLog->status = "Completed";
         $campaignLog->save();
         printLog("status changed from Running to Complete for campaignLog id : " . $campaignLog->id);
     }
@@ -533,14 +533,16 @@ function getEvent($event, $channel_id)
         case 1: {
                 $eventsynonyms = [
                     "success" => ['delivered'],
-                    "failed" => ['rejected', 'bounced', 'failed']
+                    "failed" => ['rejected', 'failed'],
+                    "queued" => ['bounced']
+
                 ];
                 foreach ($eventsynonyms as $key => $synonyms) {
                     if (in_array($event, $synonyms)) {
                         return $key;
                     }
                 }
-                return 'pending';
+                return 'queued';
             }
             break;
             //case for SMS channel
@@ -557,7 +559,7 @@ function getEvent($event, $channel_id)
                         return $key;
                     }
                 }
-                return 'pending';
+                return 'queued';
             }
             break;
     }

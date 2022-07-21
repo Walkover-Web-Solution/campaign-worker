@@ -102,6 +102,14 @@ class MongoDBLib
         return $result->getInsertedIds();
     }
 
+    public function append($filter, $input, $type)
+    {
+        $this->collection->updateMany(
+            $filter,
+            [$type => $input],
+        );
+    }
+
     public function update($filter, $input, $options = [])
     {
         $this->collection->updateMany(
