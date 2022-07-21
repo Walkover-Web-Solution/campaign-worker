@@ -527,42 +527,41 @@ function updateActionLog($log_id, $failedJobId)
  */
 function getEvent($event, $channel_id)
 {
-
     switch ($channel_id) {
             //case for E-mail channel
         case 1: {
                 $eventsynonyms = [
-                    "success" => ['delivered'],
-                    "failed" => ['rejected', 'failed'],
+                    "success" => ['success', 'delivered'],
+                    "failed" => ['failed', 'rejected'],
                     "queued" => ['bounced']
 
                 ];
-                foreach ($eventsynonyms as $key => $synonyms) {
-                    if (in_array($event, $synonyms)) {
-                        return $key;
-                    }
-                }
-                return 'queued';
             }
             break;
             //case for SMS channel
         case 2: {
                 $eventsynonyms = [
-                    "success" => ['delivered', 'clicked', 'unsubscribed', 'opened'],
+                    "success" => ['success', 'delivered', 'clicked', 'unsubscribed', 'opened'],
                     "failed" => [
-                        'rejected by kannel or provider', 'ndnc number', 'rejected by provider',
-                        'number under blocked circle', 'blocked number', 'bounced', 'auto failed', 'failed'
+                        'failed', 'rejected by kannel or provider', 'ndnc number', 'rejected by provider',
+                        'number under blocked circle', 'blocked number', 'bounced', 'auto failed'
                     ]
                 ];
-                foreach ($eventsynonyms as $key => $synonyms) {
-                    if (in_array($event, $synonyms)) {
-                        return $key;
-                    }
-                }
-                return 'queued';
             }
             break;
+        default: {
+                $eventsynonyms = [
+                    "success" => ['success'],
+                    "failed" => ['failed']
+                ];
+            }
     }
+    foreach ($eventsynonyms as $key => $synonyms) {
+        if (in_array($event, $synonyms)) {
+            return $key;
+        }
+    }
+    return 'queued';
 }
 
 function getRecipients($reqBodyData, $channel_id)
@@ -593,7 +592,8 @@ function getRecipientCount($recipients, $channel_id, $test = false)
                 return count($recipients->to) + count($recipients->cc) + count($recipients->bcc);
             }
         case 2: {
-                return count($recipients);
+                // In case of sms recipients will be only one object, so just add 1
+                return 1;
             }
         case 3: {
                 return count($recipients->to);
