@@ -600,6 +600,7 @@ function updateCampaignLog($log_id, $failedJobId)
 {
     $campaignLog = CampaignLog::where('id', $log_id)->first();
     $campaignLog->status = 'Error - ' . $failedJobId;
+    $campaignLog->canRetry = true;
     $campaignLog->save();
 }
 function updateActionLog($log_id, $failedJobId)
