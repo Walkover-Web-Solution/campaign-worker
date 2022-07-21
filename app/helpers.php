@@ -2,6 +2,7 @@
 
 use App\Jobs\Campaign\RabbitMQJob;
 use App\Libs\EmailLib;
+use App\Libs\MongoDBLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
@@ -247,8 +248,24 @@ function convertAttachments($attachments)
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
 {
+
+    $campaignLog->canRetry = false;
     $actionLogs = $campaignLog->actionLogs()->get()->toArray();
     if (empty($actionLogs)) {
+        try {
+            $mongoLib = new MongoDBLib;
+            $data = $mongoLib->collection('run_campaign_data')->find([
+                'requestId' => $campaignLog->mongo_uid
+            ]);
+            if (!empty($data)) {
+                $campaignLog->canRetry = true;
+            }
+        } catch (\Exception $e) {
+            printLog("exception in helpers.php line no 262 (mongolib error)" . $e->getMessage());
+        }
+        $campaignLog->status = "Error";
+        $campaignLog->save();
+
         printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
         return;
     }
