@@ -14,44 +14,51 @@ class WhatsappService
     protected $mongo;
     public function __construct()
     {
+        //
     }
 
-    public function createRequestBody($data)
-    {
-        unset($data->variables);
-        $obj = new \stdClass();
-        $obj->arr = [];
-        $obj->mob = [];
-        collect($data)->map(function ($item) use ($obj) {
-            $mob = collect($item)->map(function ($value) use ($obj) {
 
-                $mobile = collect($value)->only('mobiles', 'variables')->toArray();
-                if (empty($mobile["variables"])) {
-                    array_push($obj->mob, $mobile["mobiles"]);
-                } else {
-                    return $mobile;
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data)
+    {
+        $template = $flowAction->template;
+
+        $obj->mobiles = [];
+        $obj->invalid_json = false;
+        collect($mongo_data)->map(function ($data) use ($obj, $template, $flowAction) {
+            $commonVariables = empty($data->variables) ? [] : $data->variables;
+            $obj->commonMobiles = [];
+            collect($data->to)->map(function ($contact) use ($obj, $template, $commonVariables, $flowAction) {
+                if (!empty($contact->mobiles)) {
+                    $contactVariables = empty($contact->variables) ? [] : $contact->variables;
+                    $whatsappVariables = getChannelVariables($template->variables, $contactVariables, $commonVariables, $flowAction->channel_id);
+
+                    // In case of invalid json variables
+                    if ($whatsappVariables == 'invalid_json') {
+                        $obj->invalid_json = true;
+                    }
+
+                    // In case of Empty contact variables
+                    if (empty($contactVariables)) {
+                        array_push($obj->commonMobiles, $contact->mobiles);
+                    } else {
+                        array_push($obj->mobiles, [
+                            "to" => [$contact->mobiles],
+                            "components" => $whatsappVariables
+                        ]);
+                    }
                 }
-                
-            })->filter()->toArray();
-
-            $obj->arr = array_merge($obj->arr, $mob);
+            });
+            if (!empty($obj->commonMobiles)) {
+                array_push($obj->mobiles, [
+                    "to" => $obj->commonMobiles,
+                    "components" => $commonVariables
+                ]);
+            }
         });
-        if (!empty($obj->mob))
-            array_push($obj->arr, ["mobiles" => $obj->mob]);
-        return $obj->arr;
-    }
 
-    public function getRequestBody(FlowAction $flowAction, $mongo_data)
-    {
-        $data = collect($mongo_data["mobiles"])->map(function ($item) {
-            $mob = $item["mobiles"];
-            unset($item["mobiles"]);
-            $arr = [
-                "to" => is_string($mob) ? [$mob] : $mob,
-                "components" => $item
-            ];
-            return $arr;
-        })->toArray();
+        if ($obj->invalid_json) {
+            return;
+        }
 
         $configurations = collect($flowAction->configurations);
         $template = $configurations->firstWhere('name', 'template');
@@ -66,7 +73,7 @@ class WhatsappService
                     "name" => $template->template->template_id,
                     "language" => $template->template->language,
                     "namespace" => $template->template->namespace,
-                    "to_and_components" => $data
+                    "to_and_components" => $obj->mobiles
                 ]
             ],
             "node_id" => (string)$flowAction['id']

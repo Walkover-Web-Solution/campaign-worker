@@ -132,102 +132,11 @@ function stringToJson($str)
 {
     $data = collect(explode(',', $str));
     $mappedData = $data->map(function ($item) {
-        return array(
+        return (object)[
             "email" => $item
-        );
-    });
+        ];
+    })->toArray();
     return $mappedData;
-}
-
-function convertBody($md, $campaign, $flow)
-{
-    $allFlow = $campaign->flowActions()->get();
-    $obj = new \stdClass();
-    $obj->emailCount = 0;
-    $obj->invalid_json = false;
-    $obj->mobileCount = 0;
-    $obj->emails = [];
-    $obj->mobiles = [];
-    $obj->variables = [];
-    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
-
-    $template = $flow->template;
-    $channel = $flow->channel_id;
-    if (in_array($channel, $obj->hasChannel)) {
-        $service = setService($channel);
-        collect($md)->each(function ($item) use ($obj, $service, $channel, $template) {
-            if (!empty($item->variables))
-                $obj->variables = collect($item->variables)->toArray();
-            switch ($channel) {
-                case 1: {
-                        $to = [];
-                        $cc = [];
-                        $bcc = [];
-                        if (isset($item->to)) {
-                            $to = $service->createRequestBody($item->to);
-                            $to = collect($to)->whereNotNull('email')->toArray();
-                        }
-                        if (isset($item->cc)) {
-                            $cc = $service->createRequestBody($item->cc);
-                            $cc = collect($cc)->whereNotNull('email')->toArray();
-                        }
-                        if (isset($item->bcc)) {
-                            $bcc = $service->createRequestBody($item->bcc);
-                            $bcc = collect($bcc)->whereNotNull('email')->toArray();
-                        }
-                        $emails = [
-                            "to" => $to,
-                            "cc" => $cc,
-                            "bcc" => $bcc,
-                            "variables" => $obj->variables
-                        ];
-                        $obj->emailCount += count($to) + count($cc) + count($bcc);
-                        array_push($obj->emails, $emails);
-                    }
-                    break;
-                case 6: // for condition flowAciton
-                    break;
-                default: {
-                        $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $obj->data = [];
-                        collect($mobiles)->each(function ($mobile) use ($template, $obj, $item, $channel) {
-                            $smsVariables = getChannelVariables(
-                                $template->variables,
-                                empty($mobile['variables']) ? [] : (array)$mobile['variables'],
-                                empty($obj->variables) ? [] : $obj->variables,
-                                $channel
-                            );
-                            // In case of Invalid json in whatsapp
-                            if ($smsVariables == "invalid json") {
-                                $obj->invalid_json = true;
-                                return false;
-                            }
-
-                            $mobile = array_merge($mobile, $smsVariables);
-                            unset($mobile['variables']);
-                            array_push($obj->data, $mobile);
-                        })->toArray();
-
-                        if ($obj->invalid_json) {
-                            return false;
-                        }
-
-                        $obj->mobiles = array_merge($obj->mobiles, $obj->data);
-                        $obj->mobileCount += count($obj->mobiles);
-                    }
-                    break;
-            }
-        });
-    }
-    if ($obj->invalid_json) {
-        return false;
-    }
-    $data = [
-        "emails" => $obj->emails,
-        "mobiles" => $obj->mobiles,
-        "variables" => $obj->variables
-    ];
-    return $data;
 }
 
 function convertAttachments($attachments)
@@ -484,15 +393,15 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
     $obj->invalid_json = false;
 
     collect($templateVariables)->each(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
-        if (!empty($contactVariables[$variableKey])) {
+        if (!empty($contactVariables->$variableKey)) {
             $variableSet = $contactVariables;
-        } else if (!empty($commonVariables[$variableKey])) {
+        } else if (!empty($commonVariables->$variableKey)) {
             $variableSet = $commonVariables;
         } else {
             return;
         }
         if ($channel == 3) {
-            if (is_string($variableSet[$variableKey])) {
+            if (is_string($variableSet->$variableKey)) {
                 if ((\Str::startsWith($variableKey, 'button'))) {
                     // In case of wrong body of button variable
                     $obj->invalid_json = true;
@@ -501,30 +410,30 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
 
                 $arr = [
                     "type" => 'text',
-                    'value' => $variableSet[$variableKey]
+                    'value' => $variableSet->$variableKey
                 ];
             } else {
                 if (\Str::startsWith($variableKey, 'button')) {
                     // In case of wrong body of button variable
-                    if (empty($variableSet[$variableKey]->sub_type) || empty($variableSet[$variableKey]->type) || empty($variableSet[$variableKey]->value)) {
+                    if (empty($variableSet->$variableKey->sub_type) || empty($variableSet->$variableKey->type) || empty($variableSet->$variableKey->value)) {
                         $obj->invalid_json = true;
                         return false;
                     }
-                    $arr = $variableSet[$variableKey];
+                    $arr = $variableSet->$variableKey;
                 } else {
                     $arr = [
-                        "type" => empty($variableSet[$variableKey]->type) ? "text" : $variableSet[$variableKey]->type,
-                        "value" => empty($variableSet[$variableKey]->value) ? "" : $variableSet[$variableKey]->value
+                        "type" => empty($variableSet->$variableKey->type) ? "text" : $variableSet->$variableKey->type,
+                        "value" => empty($variableSet->$variableKey->value) ? "" : $variableSet->$variableKey->value
                     ];
                 }
             }
 
             $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
         } else {
-            if (is_string($variableSet[$variableKey])) {
-                $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
+            if (is_string($variableSet->$variableKey)) {
+                $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet->$variableKey]);
             } else {
-                $var = $variableSet[$variableKey];
+                $var = $variableSet->$variableKey;
                 if (empty($var->value)) {
                     $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
                 } else {
@@ -534,7 +443,7 @@ function getChannelVariables($templateVariables, $contactVariables, $commonVaria
         }
     });
     if ($obj->invalid_json) {
-        return "invalid json";
+        return "invalid_json";
     }
     return $obj->variables;
 }
@@ -599,7 +508,7 @@ function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
 function updateCampaignLog($log_id, $failedJobId)
 {
     $campaignLog = CampaignLog::where('id', $log_id)->first();
-    $campaignLog->status = 'Failed -' . $failedJobId;
+    $campaignLog->status = 'Error - ' . $failedJobId;
     $campaignLog->save();
 }
 function updateActionLog($log_id, $failedJobId)
@@ -653,5 +562,47 @@ function getEvent($event, $channel_id)
                 return 'queued';
             }
             break;
+    }
+}
+
+function getRecipients($reqBodyData, $channel_id)
+{
+    switch ($channel_id) {
+        case 1: {
+                return $reqBodyData->recipients;
+            }
+        case 2: {
+                return $reqBodyData->recipients;
+            }
+        case 3: {
+                return $reqBodyData->payload->template->to_and_components;
+            }
+        case 4: {
+                return [];
+            }
+        case 5: {
+                return $reqBodyData->customer_number_variables;
+            }
+    }
+}
+
+function getRecipientCount($recipients, $channel_id, $test = false)
+{
+    switch ($channel_id) {
+        case 1: {
+                return count($recipients->to) + count($recipients->cc) + count($recipients->bcc);
+            }
+        case 2: {
+                return count($recipients);
+            }
+        case 3: {
+                return count($recipients->to);
+            }
+        case 4: {
+                return count($recipients);
+            }
+        case 5: {
+                return count($recipients->customer_number);
+            }
     }
 }

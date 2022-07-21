@@ -18,19 +18,6 @@ class EmailService
         //
     }
 
-    public function createRequestBody($data)
-    {
-
-        $mappedData = collect($data)->map(function ($item) {
-
-            return array(
-                "name" => empty($item->name) ? null : $item->name,
-                "email" => empty($item->email) ? null : $item->email
-            );
-        })->toArray();
-        return $mappedData;
-    }
-
     public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $templateVariables, $attachments, $reply_to)
     {
         $obj->values = [];
@@ -38,35 +25,39 @@ class EmailService
             if ($item->name != 'template')
                 $obj->values[$item->name] = $item->value;
         });
-        $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $templateVariables) {
+        $recipients = collect($mongo_data)->map(function ($md) use ($obj, $templateVariables) {
+            $to = $md->to;
             $cc = [];
             $bcc = [];
 
-            if (!empty($md['cc'])) {
-                $cc = $md['cc'];
+            $to = collect($to)->map(function ($contact) {
+                unset($contact->mobiles);
+                return $contact;
+            })->toArray();
+
+            if (!empty($md->cc)) {
+                $cc = $md->cc;
             } else if (!empty($obj->values['cc'])) {
                 $cc = stringToJson($obj->values['cc']);
             }
-            if (!empty($md['bcc'])) {
-                $bcc = $md['bcc'];
+            if (!empty($md->bcc)) {
+                $bcc = $md->bcc;
             } else if (!empty($obj->values['bcc'])) {
                 $bcc = stringToJson($obj->values['bcc']);
             }
-            $to = $md['to'];
+
             $obj->count += count($to);
             if (!empty($cc))
                 $obj->count += count($cc);
             if (!empty($bcc))
                 $obj->count += count($bcc);
 
-
             //filter out variables of this flowActions template
-            $variables = collect($md['variables'])->map(function ($value, $key) use ($templateVariables) {
+            $variables = collect($md->variables)->map(function ($value, $key) use ($templateVariables) {
                 if (in_array($key, $templateVariables)) {
                     return $value;
                 }
-            });
-            $variables = array_filter($variables->toArray());
+            })->whereNotNull()->toArray();
 
             $variables = collect($variables)->map(function ($var) {
                 if (is_string($var)) {
@@ -75,15 +66,16 @@ class EmailService
                     if (empty($var->value)) {
                         return "";
                     } else {
-
-                        return $var->value;
+                        if (is_string($var->value)) {
+                            return $var->value;
+                        }
+                        return null;
                     }
                 }
             })->toArray();
-            // $variables = array_intersect($variables, $md['variables']);
 
             $data = array(
-                "to" => $md['to'],
+                "to" => $to,
                 "cc" => $cc,
                 "bcc" => $bcc,
                 "variables" => $variables
