@@ -92,6 +92,9 @@ class EventService
                         // create next action_log
                         $type = '$push';
                         if (empty($action_log->action_id[$keySplit[1]])) {
+                            if (empty($filteredData[$keySplit[1]])) {
+                                return;
+                            }
                             $next_action_log = $this->createNextActionLog($flowAction, ucfirst($keySplit[1]), $action_log, $filteredData[$keySplit[1]], $mongo_data);
                             if ($action_log->action_id == []) {
                                 $action_log->action_id = [$keySplit[1] => $next_action_log->id];
