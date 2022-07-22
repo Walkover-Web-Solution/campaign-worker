@@ -153,13 +153,13 @@ class ChannelService
                     // Set duplicate count to zero if sending in bunch but give in next calling for this function
                     $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $temp, $flowAction, 0, $action_log, $invalidJson);
                     $this->nextJob($flowAction, $action_log, $statusANDref_id->status, $statusANDref_id->ref_id, $md, $campaignLog, $temp);
-                    $count = 1;
+                    $count = $recipientCount;
                     $temp = [];
                 }
                 array_push($temp, $recipients);
             }
-            // For last set of bunch - currentCount will be remainder of totalCount by maxCount
-            $currentCount = $reqBody->count % $maxCount;
+            // For last set of bunch - currentCount will the remaining count from above loop
+            $currentCount = $count;
             $payload = $temp;
         }
         $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $payload, $flowAction, $duplicateCount, $action_log, $invalidJson);
