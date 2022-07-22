@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class RabbitMQJob implements ShouldQueue
 {
@@ -150,10 +151,13 @@ class RabbitMQJob implements ShouldQueue
                 case "email_to_campaign_logs": {
                         $log_id = $msg->request_id; // Event request_id is ref_id for event processing
                         $actionLogRefIdRelation = ActionLogRefIdRelation::where('ref_id', $log_id)->first();
+                        if (empty($actionLogRefIdRelation)) {
+                            throw new NotFoundHttpException('ActionLogRefIdRelation Not Found for ref_id : ' . $log_id);
+                        }
                         $actionLog = $actionLogRefIdRelation->actionLog;
                         if (empty($actionLog)) {
                             printLog("No action log found for ref_id: " . $log_id, 1);
-                            break;
+                            throw new NotFoundHttpException('ActionLogRefIdRelation Not Found for ref_id : ' . $log_id);
                         }
                         $eventService = new EventService();
                         $eventService->processEvent($actionLog, $msg, true);
