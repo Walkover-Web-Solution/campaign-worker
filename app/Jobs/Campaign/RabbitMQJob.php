@@ -135,13 +135,13 @@ class RabbitMQJob implements ShouldQueue
                         break;
                     }
                 case "event_processing": {
-                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $log_id = $msg->request_id; // request_id is log_id for event processing in catch below
                         $eventService = new EventService();
-                        $eventService->processEvent($msg->eventMongoId);
+                        $eventService->processEvent($log_id);
                         break;
                     }
                 case "failed_event_processing": {
-                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $log_id = $msg->request_id; // request_id is log_id for event processing in catch below
                         $msg->failedCount++;
                         createNewJob($msg, "event_processing");
                         break;

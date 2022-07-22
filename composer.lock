@@ -1166,18 +1166,6 @@
         },
         {
             "name": "guzzlehttp/psr7",
-<<<<<<< HEAD
-            "version": "2.3.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/guzzle/psr7.git",
-                "reference": "83260bb50b8fc753c72d14dc1621a2dac31877ee"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/83260bb50b8fc753c72d14dc1621a2dac31877ee",
-                "reference": "83260bb50b8fc753c72d14dc1621a2dac31877ee",
-=======
             "version": "2.4.0",
             "source": {
                 "type": "git",
@@ -1188,7 +1176,6 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/guzzle/psr7/zipball/13388f00956b1503577598873fffb5ae994b5737",
                 "reference": "13388f00956b1503577598873fffb5ae994b5737",
->>>>>>> dev
                 "shasum": ""
             },
             "require": {
@@ -1212,11 +1199,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-<<<<<<< HEAD
-                    "dev-master": "2.3-dev"
-=======
                     "dev-master": "2.4-dev"
->>>>>>> dev
                 }
             },
             "autoload": {
