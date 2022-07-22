@@ -129,7 +129,7 @@ class ChannelService
         }
 
         // Update no_of_records in action_log
-        $action_log->no_of_records = $reqBody->count;
+        $action_log->no_of_records += $reqBody->count;
         $action_log->save();
 
         $channel_type = ChannelType::where('id', $flowAction->channel_id)->first();
