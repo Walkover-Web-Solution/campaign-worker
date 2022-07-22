@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Libs\MongoDBLib;
 use App\Models\ActionLog;
+use App\Models\ActionLogRefIdRelation;
 use App\Models\ChannelType;
 use App\Models\FlowAction;
 use Carbon\Carbon;
@@ -36,7 +37,11 @@ class EventService
             // $campaign_id_split = explode('_', $requestBody->campaign_id);
             // $actionLogId = $campaign_id_split[0];
 
-            $action_log = ActionLog::where('ref_id', $eventMongoId)->first();
+            $ref_id = ActionLogRefIdRelation::where('ref_id', $eventMongoId)->first();
+            $action_log = null;
+            if (!empty($ref_id)) {
+                $action_log = $ref_id->actionLog;
+            }
         } else {
             // In case of email eventMongoId will be action_log model from queue : 'email_to_campaign_logs'
             $action_log = $eventMongoId;
@@ -44,6 +49,21 @@ class EventService
         if (empty($action_log)) {
             throw new \Exception('Action Log not found!');
         }
+
+        $campaignLog = $action_log->campaignLog;
+        printLog("Checking for the campaign log Stopped or not " . $campaignLog->status);
+        if ($campaignLog->status == 'Stopped') {
+            printLog("Status changing to Stopped");
+            $action_log->status = 'Stopped';
+            // In case of CampaignLog Stopped due to loop. update response of action_log also.
+            if ($campaignLog->actionLogs()->whereJsonContains('response', ["errors" => "Loop detected!"])->count() > 0) {
+                $action_log->response = ['errors' => "Loop detected!"];
+            }
+            $action_log->save();
+            printLog("Status changed to stopped.");
+            return;
+        }
+
         $channel_id = $action_log->flowAction()->first()->channel_id;
         // Fetch data from mongo
         $mongo_data = $this->mongo->collection('flow_action_data')->find([
@@ -78,14 +98,14 @@ class EventService
                             } else {
                                 $action_log->action_id = array_merge($action_log->action_id, [$keySplit[1] => $next_action_log->id]);
                             }
-                            // dd($next_action_log);
-                            // dd("here");
                             $action_log->save();
                             $type = '$set';
                         }
                         $next_action_log = ActionLog::where('id', $action_log->action_id[$keySplit[1]])->first();
                         if ($type == '$push') {
-
+                            if (empty($filteredData[$keySplit[1]])) {
+                                return;
+                            }
                             $filteredData[$keySplit[1]] = $filteredData[$keySplit[1]][0];
                         }
                         $data = $this->mongo->collection('flow_action_data')->append(["requestId" => $next_action_log->mongo_id], ['data.sendTo' => $filteredData[$keySplit[1]]], $type);
@@ -311,6 +331,12 @@ class EventService
                 ];
                 printLog('Creating new action as per channel id ');
                 $actionLog = ActionLog::create($actionLogData);
+                if ($loop_detected) {
+                    $actionLog->ref_id()->create([
+                        'ref_id' => "", 'status' => "Stopped",
+                        'response' => ['errors' => 'Loop detected!'], 'no_of_records' => $actionLog->no_of_records
+                    ]);
+                }
                 return $actionLog;
             } else {
                 printLog("Didn't found next flow action.");

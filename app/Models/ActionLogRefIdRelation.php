@@ -28,7 +28,7 @@ class ActionLogRefIdRelation extends Model
     /**
      * Get the ref_ids that owns the ActionLog
      */
-    public function actionLogs()
+    public function actionLog()
     {
         return $this->belongsTo(ActionLog::class, 'action_log_id');
     }

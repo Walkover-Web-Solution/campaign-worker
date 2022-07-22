@@ -74,8 +74,23 @@ class ChannelService
         // Seperate reply_to from mongo data
         $reply_to = empty($md[0]->data->reply_to) ? [] : $md[0]->data->reply_to;
 
+        // Get sliced data from mongo
+        if (empty($md[0]->sendToCount)) {
+            $sendToCount = 0;
+        } else {
+            $sendToCount = $md[0]->sendToCount;
+        }
+        $mongo_sliced_data = array_slice($md[0]->data->sendTo, $sendToCount);
+
+        $this->mongo->collection('flow_action_data')
+            ->update(["requestId" => $action_log->mongo_id],  ["sendToCount" => count($mongo_sliced_data)]);
+
+        if (empty($mongo_sliced_data)) {
+            return;
+        }
+
         printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flowAction, $md, $action_log, $attachments, $reply_to);
+        $reqBody = $this->getRequestBody($flowAction, $mongo_sliced_data, $action_log, $attachments, $reply_to);
 
         $invalidJson = false;
         if ($reqBody == 'invalid_json') {
@@ -138,7 +153,7 @@ class ChannelService
                     // Set duplicate count to zero if sending in bunch but give in next calling for this function
                     $statusANDref_id = $this->sendAndUpdateRefId($reqBody, $currentCount, $temp, $flowAction, 0, $action_log, $invalidJson);
                     $this->nextJob($flowAction, $action_log, $statusANDref_id->status, $statusANDref_id->ref_id, $md, $campaignLog, $temp);
-                    $count = 0;
+                    $count = 1;
                     $temp = [];
                 }
                 array_push($temp, $recipients);
@@ -244,34 +259,34 @@ class ChannelService
                 return;
             }
 
-            // If loop detected next_action_log's status will be Stopped
-            if ($next_action_log->status == 'Stopped') {
-                $campaignLog->status = 'Stopped';
-                $campaignLog->save();
+            // // If loop detected next_action_log's status will be Stopped
+            // if ($next_action_log->status == 'Stopped') {
+            //     $campaignLog->status = 'Stopped';
+            //     $campaignLog->save();
 
-                $slack = new SlackService();
-                $error = array(
-                    'Action_log_id' => $next_action_log->id
-                );
-                $slack->sendLoopErrorToSlack((object)$error);
-                return;
-            }
+            //     $slack = new SlackService();
+            //     $error = array(
+            //         'Action_log_id' => $next_action_log->id
+            //     );
+            //     $slack->sendLoopErrorToSlack((object)$error);
+            //     return;
+            // }
 
-            $nextFlowAction = $next_action_log->flowAction;
-            $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
-            if (empty($delayTime)) {
-                $delayValue = 0;
-            } else {
-                $delayValue = getSeconds($delayTime->unit, $delayTime->value);
-            }
+            // $nextFlowAction = $next_action_log->flowAction;
+            // $delayTime = collect($nextFlowAction->configurations)->firstWhere('name', 'delay');
+            // if (empty($delayTime)) {
+            //     $delayValue = 0;
+            // } else {
+            //     $delayValue = getSeconds($delayTime->unit, $delayTime->value);
+            // }
 
-            printLog("Now creating new job for action log.", 1);
-            $input = new \stdClass();
-            $input->action_log_id =  $next_action_log->id;
-            $queue = getQueue($nextFlowAction->channel_id);
-            if ($campaignLog->is_paused)
-                $delayValue = 0;
-            createNewJob($input, $queue, $delayValue);
+            // printLog("Now creating new job for action log.", 1);
+            // $input = new \stdClass();
+            // $input->action_log_id =  $next_action_log->id;
+            // $queue = getQueue($nextFlowAction->channel_id);
+            // if ($campaignLog->is_paused)
+            //     $delayValue = 0;
+            // createNewJob($input, $queue, $delayValue);
         } else {
             // Call cron to set campaignLog Complete
             updateCampaignLogStatus($campaignLog);
@@ -289,7 +304,7 @@ class ChannelService
         // get template of this flowAction
         $temp = $flowAction->template;
 
-        $mongo_data = $md[0]->data->sendTo;
+        $mongo_data = $md;
 
         $data = [];
 
@@ -340,62 +355,63 @@ class ChannelService
             $event_id = 2;
             $next_flow_id = isset($flowAction->module_data->op_failed) ? $flowAction->module_data->op_failed : null;
         }
+        // Loop will be handled from EventService
+        return 'create_webhook';
 
         // Check for loop and increase count
-        $path = $md[0]->node_count;
-        $path_key = $flowAction->id . '.' . $event_id;
-        $loop_detected = false;
-        if (empty($path->$path_key)) {
-            $path->$path_key = $next_flow_id + 0.1;
-        } else {
-            // In case next_flow_action gets changed, so reinitialize it
-            if ((int)$path->$path_key != $next_flow_id) {
-                $path->$path_key = $next_flow_id + 0.1;
-            } else {
-                $path->$path_key += 0.1;
-                $count = ($path->$path_key * 10) % 10;
-                if ($count > 2) {
-                    $loop_detected = true;
-                }
-            }
-        }
+        // $path = $md[0]->node_count;
+        // $path_key = $flowAction->id . '.' . $event_id;
+        // $loop_detected = false;
+        // if (empty($path->$path_key)) {
+        //     $path->$path_key = $next_flow_id + 0.1;
+        // } else {
+        //     // In case next_flow_action gets changed, so reinitialize it
+        //     if ((int)$path->$path_key != $next_flow_id) {
+        //         $path->$path_key = $next_flow_id + 0.1;
+        //     } else {
+        //         $path->$path_key += 0.1;
+        //         $count = ($path->$path_key * 10) % 10;
+        //         if ($count > 2) {
+        //             $loop_detected = true;
+        //         }
+        //     }
+        // }
 
-        // Update path in mongo
-        $this->mongo->collection('flow_action_data')
-            ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
+        // Update path in mongo - REMOVE (comment)
+        // $this->mongo->collection('flow_action_data')
+        //     ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
+        // if (!$loop_detected) {
+        //     return 'create_webhook';
+        // }
 
-        if (!$loop_detected) {
-            return 'create_webhook';
-        }
+        // printLog('Get status from microservice ' . $status, 1);
+        // printLog("Events are ", 1, $events);
+        // if (in_array($status, $events) && !empty($next_flow_id)) {
+        //     printLog('Next flow id is ' . $next_flow_id, 1);
+        //     $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
 
-        printLog('Get status from microservice ' . $status, 1);
-        printLog("Events are ", 1, $events);
-        if (in_array($status, $events) && !empty($next_flow_id)) {
-            printLog('Next flow id is ' . $next_flow_id, 1);
-            $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
+        //     if (!empty($flow)) {
+        //         printLog("Found next flow action.");
+        //         $actionLogData = [
+        //             "campaign_id" => $action_log->campaign_id,
+        //             "no_of_records" => $action_log->no_of_records,
+        //             "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
+        //             "status" => $loop_detected ? "Stopped" : "pending",
+        //             "report_status" => "pending",
+        //             "ref_id" => "",
+        //             "flow_action_id" => $next_flow_id,
+        //             "mongo_id" => $action_log->mongo_id,
+        //             'campaign_log_id' => $action_log->campaign_log_id
+        //         ];
+        //         printLog('Creating new action as per channel id ', 1);
+        //         $actionLog = $campaign->actionLogs()->create($actionLogData);
 
-            if (!empty($flow)) {
-                printLog("Found next flow action.");
-                $actionLogData = [
-                    "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => $action_log->no_of_records,
-                    "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
-                    "status" => $loop_detected ? "Stopped" : "pending",
-                    "report_status" => "pending",
-                    "ref_id" => "",
-                    "flow_action_id" => $next_flow_id,
-                    "mongo_id" => $action_log->mongo_id,
-                    'campaign_log_id' => $action_log->campaign_log_id
-                ];
-                printLog('Creating new action as per channel id ', 1);
-                $actionLog = $campaign->actionLogs()->create($actionLogData);
-
-                return $actionLog;
-            } else {
-                printLog("Didn't found next flow action.");
-            }
-        }
-        return;
+        //         return $actionLog;
+        //     } else {
+        //         printLog("Didn't found next flow action.");
+        //     }
+        // }
+        // return;
     }
 
     public function createWebhook($recipients, $status, $ref_id, $channel_id)
@@ -462,7 +478,7 @@ class ChannelService
         $this->mongo->collection('event_action_data')->insertOne($webhookData);
 
         $input = (object)[];
-        $input->eventMongoId = $ref_id;
+        $input->request_id = $ref_id;
         // Create job for webhook
         createNewJob($input, "event_processing");
     }
