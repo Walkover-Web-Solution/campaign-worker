@@ -67,7 +67,7 @@ class RecordService
         $mongoId = $this->mongo->collection('flow_action_data')->insertOne($data);
         printLog("data stiored in mongo and now creating action log", 2);
         $actionLogData = [
-            "no_of_records" => $camplog->no_of_contacts,
+            "no_of_records" => 0,
             "status" => "pending",
             "report_status" => "pending",
             "ref_id" => "",
