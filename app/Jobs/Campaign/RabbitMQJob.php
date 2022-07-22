@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Jobs\Campaign;
 
+use App\Models\ActionLog;
 use App\Services\ChannelService;
 use App\Services\ConditionService;
 use App\Services\EventService;
@@ -12,7 +13,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use VladimirYuldashev\LaravelQueueRabbitMQ\Queue\RabbitMQQueue;
 
 class RabbitMQJob implements ShouldQueue
 {
@@ -44,7 +44,11 @@ class RabbitMQJob implements ShouldQueue
         printLog("=============== We are in docodedData ===================", 2);
         try {
             $log_id = null;
-            $failedCount = empty($msg->failedCount) ? 0 : $msg->failedCount;
+            $msg = (object)$msg;
+            if (empty($msg->failedCount)) {
+                $msg->failedCount = 0;
+            }
+            $failedCount = $msg->failedCount;
             switch ($this->queue) {
                 case "1k_data_queue": {
                         $log_id = $msg->campaignLogId;
@@ -62,12 +66,6 @@ class RabbitMQJob implements ShouldQueue
                         $log_id = $msg->action_log_id;
                         $channelService = new ChannelService();
                         $channelService->sendData($log_id);
-                        break;
-                    }
-                case "event_processing": {
-                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
-                        $eventService = new EventService();
-                        $eventService->processEvent($msg->eventMongoId);
                         break;
                     }
                 case "failed_run_email_campaigns": {
@@ -112,16 +110,16 @@ class RabbitMQJob implements ShouldQueue
                         createNewJob($msg, "run_voice_campaigns");
                         break;
                     }
-                case "run_whastapp_campaigns": {
+                case "run_whatsapp_campaigns": {
                         $log_id = $msg->action_log_id;
                         $channelService = new ChannelService();
                         $channelService->sendData($log_id);
                         break;
                     }
-                case "failed_run_whastapp_campaigns": {
+                case "failed_run_whatsapp_campaigns": {
                         $log_id = $msg->action_log_id;
                         $msg->failedCount++;
-                        createNewJob($msg, "run_whastapp_campaigns");
+                        createNewJob($msg, "run_whatsapp_campaigns");
                         break;
                     }
                 case "condition_queue": {
@@ -136,10 +134,33 @@ class RabbitMQJob implements ShouldQueue
                         createNewJob($msg, "condition_queue");
                         break;
                     }
+                case "event_processing": {
+                        $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
+                        $eventService = new EventService();
+                        $eventService->processEvent($msg->eventMongoId);
+                        break;
+                    }
                 case "failed_event_processing": {
                         $log_id = $msg->eventMongoId; // Event mongo id is log_id for event processing in catch below
                         $msg->failedCount++;
                         createNewJob($msg, "event_processing");
+                        break;
+                    }
+                case "email_to_campaign_logs": {
+                        $log_id = $msg->request_id; // Event request_id is ref_id for event processing
+                        $actionLog = ActionLog::where('ref_id', $log_id)->first();
+                        if (empty($actionLog)) {
+                            printLog("No action log found for ref_id: " . $log_id, 1);
+                            break;
+                        }
+                        $eventService = new EventService();
+                        $eventService->processEvent($actionLog, $msg, true);
+                        break;
+                    }
+                case "failed_email_to_campaign_logs": {
+                        $log_id = $msg->request_id; // Event request_id is ref_id for event processing
+                        $msg->failedCount++;
+                        createNewJob($msg, "email_to_campaign_logs");
                         break;
                     }
                 default: {

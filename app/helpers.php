@@ -1,7 +1,8 @@
 <?php
 
-use App\Jobs\RabbitMQJob;
+use App\Jobs\Campaign\RabbitMQJob;
 use App\Libs\EmailLib;
+use App\Libs\MongoDBLib;
 use App\Libs\RcsLib;
 use App\Libs\SmsLib;
 use App\Libs\VoiceLib;
@@ -105,15 +106,22 @@ function getSeconds($unit, $value)
     }
 }
 
-function logTest($message, $data)
+function logTest($message, $data, $type = "run")
 {
     $logData = [
         "message" => $message,
         "data" => $data,
         'env' => env('APP_ENV')
-
     ];
-    Curl::to("https://sokt.io/app/PnZCHW9Tz62eNZNMn4aA/Run-response-data-logs")
+    switch ($type) {
+        case "run":
+            $endpoint = "https://sokt.io/app/PnZCHW9Tz62eNZNMn4aA/Run-response-data-logs";
+            break;
+        case "event":
+            $endpoint = "https://sokt.io/app/PnZCHW9Tz62eNZNMn4aA/events-logs-test";
+            break;
+    }
+    Curl::to($endpoint)
         ->withHeader('')
         ->withData($logData)
         ->asJson()
@@ -137,17 +145,18 @@ function convertBody($md, $campaign, $flow)
     $allFlow = $campaign->flowActions()->get();
     $obj = new \stdClass();
     $obj->emailCount = 0;
+    $obj->invalid_json = false;
     $obj->mobileCount = 0;
     $obj->emails = [];
     $obj->mobiles = [];
     $obj->variables = [];
-    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique();
+    $obj->hasChannel = collect($allFlow)->pluck('channel_id')->unique()->toArray();
 
     $template = $flow->template;
-
-    $obj->hasChannel->map(function ($channel) use ($obj, $md, $template) {
+    $channel = $flow->channel_id;
+    if (in_array($channel, $obj->hasChannel)) {
         $service = setService($channel);
-        collect($md)->map(function ($item) use ($obj, $service, $channel, $template) {
+        collect($md)->each(function ($item) use ($obj, $service, $channel, $template) {
             if (!empty($item->variables))
                 $obj->variables = collect($item->variables)->toArray();
             switch ($channel) {
@@ -181,24 +190,39 @@ function convertBody($md, $campaign, $flow)
                     break;
                 default: {
                         $mobiles = collect($service->createRequestBody($item))->whereNotNull('mobiles')->toArray();
-                        $data = collect($mobiles)->map(function ($mobile) use ($template, $obj, $item) {
+                        $obj->data = [];
+                        collect($mobiles)->each(function ($mobile) use ($template, $obj, $item, $channel) {
                             $smsVariables = getChannelVariables(
                                 $template->variables,
                                 empty($mobile['variables']) ? [] : (array)$mobile['variables'],
-                                empty($obj->variables) ? [] : $obj->variables
+                                empty($obj->variables) ? [] : $obj->variables,
+                                $channel
                             );
+                            // In case of Invalid json in whatsapp
+                            if ($smsVariables == "invalid json") {
+                                $obj->invalid_json = true;
+                                return false;
+                            }
 
                             $mobile = array_merge($mobile, $smsVariables);
                             unset($mobile['variables']);
-                            return $mobile;
+                            array_push($obj->data, $mobile);
                         })->toArray();
-                        $obj->mobiles = array_merge($obj->mobiles, $data);
+
+                        if ($obj->invalid_json) {
+                            return false;
+                        }
+
+                        $obj->mobiles = array_merge($obj->mobiles, $obj->data);
                         $obj->mobileCount += count($obj->mobiles);
                     }
                     break;
             }
         });
-    });
+    }
+    if ($obj->invalid_json) {
+        return false;
+    }
     $data = [
         "emails" => $obj->emails,
         "mobiles" => $obj->mobiles,
@@ -224,8 +248,24 @@ function convertAttachments($attachments)
 
 function updateCampaignLogStatus(CampaignLog $campaignLog)
 {
+
+    $campaignLog->canRetry = false;
     $actionLogs = $campaignLog->actionLogs()->get()->toArray();
     if (empty($actionLogs)) {
+        try {
+            $mongoLib = new MongoDBLib;
+            $data = $mongoLib->collection('run_campaign_data')->find([
+                'requestId' => $campaignLog->mongo_uid
+            ]);
+            if (!empty($data)) {
+                $campaignLog->canRetry = true;
+            }
+        } catch (\Exception $e) {
+            printLog("exception in helpers.php line no 262 (mongolib error)" . $e->getMessage());
+        }
+        $campaignLog->status = "Error";
+        $campaignLog->save();
+
         printLog("No actionLogs found for campaignLog id : " . $campaignLog->id);
         return;
     }
@@ -428,7 +468,7 @@ function getQueue($channel_id)
         case 2:
             return 'run_sms_campaigns';
         case 3:
-            return 'run_whastapp_campaigns';
+            return 'run_whatsapp_campaigns';
         case 4:
             return 'run_voice_campaigns';
         case 5:
@@ -454,27 +494,65 @@ function createNewJob($input, $queue, $delayTime = 0)
     printLog("Successfully created new job.", 2);
 }
 
-function getChannelVariables($templateVariables, $contactVariables, $commonVariables)
+function getChannelVariables($templateVariables, $contactVariables, $commonVariables, $channel)
 {
     $obj = new \stdClass();
     $obj->variables = [];
-    if (empty($contactVariables)) {
-        collect($templateVariables)->map(function ($variableKey) use ($commonVariables, $obj) {
-            if (!empty($commonVariables[$variableKey]))
-                $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
-        });
-        return $obj->variables;
-    }
-    $totalVariables = array_unique(array_merge(array_keys($contactVariables), $templateVariables));
-    $variableKeys = array_intersect(array_keys($commonVariables), $totalVariables);
+    $obj->invalid_json = false;
 
-    collect($variableKeys)->map(function ($variableKey) use ($obj, $contactVariables, $commonVariables) {
+    collect($templateVariables)->each(function ($variableKey) use ($obj, $contactVariables, $commonVariables, $channel) {
         if (!empty($contactVariables[$variableKey])) {
-            $obj->variables = array_merge($obj->variables, [$variableKey => $contactVariables[$variableKey]]);
+            $variableSet = $contactVariables;
         } else if (!empty($commonVariables[$variableKey])) {
-            $obj->variables = array_merge($obj->variables, [$variableKey => $commonVariables[$variableKey]]);
+            $variableSet = $commonVariables;
+        } else {
+            return;
+        }
+        if ($channel == 3) {
+            if (is_string($variableSet[$variableKey])) {
+                if ((\Str::startsWith($variableKey, 'button'))) {
+                    // In case of wrong body of button variable
+                    $obj->invalid_json = true;
+                    return false;
+                }
+
+                $arr = [
+                    "type" => 'text',
+                    'value' => $variableSet[$variableKey]
+                ];
+            } else {
+                if (\Str::startsWith($variableKey, 'button')) {
+                    // In case of wrong body of button variable
+                    if (empty($variableSet[$variableKey]->sub_type) || empty($variableSet[$variableKey]->type) || empty($variableSet[$variableKey]->value)) {
+                        $obj->invalid_json = true;
+                        return false;
+                    }
+                    $arr = $variableSet[$variableKey];
+                } else {
+                    $arr = [
+                        "type" => empty($variableSet[$variableKey]->type) ? "text" : $variableSet[$variableKey]->type,
+                        "value" => empty($variableSet[$variableKey]->value) ? "" : $variableSet[$variableKey]->value
+                    ];
+                }
+            }
+
+            $obj->variables = array_merge($obj->variables, [$variableKey => $arr]);
+        } else {
+            if (is_string($variableSet[$variableKey])) {
+                $obj->variables = array_merge($obj->variables, [$variableKey => $variableSet[$variableKey]]);
+            } else {
+                $var = $variableSet[$variableKey];
+                if (empty($var->value)) {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => ""]);
+                } else {
+                    $obj->variables = array_merge($obj->variables, [$variableKey => $var->value]);
+                }
+            }
         }
     });
+    if ($obj->invalid_json) {
+        return "invalid json";
+    }
     return $obj->variables;
 }
 
@@ -522,7 +600,7 @@ function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
                 updateActionLog($log_id, $failedJob->id);
                 break;
             }
-        case "run_whastapp_campaigns": {
+        case "run_whatsapp_campaigns": {
                 updateActionLog($log_id, $failedJob->id);
                 break;
             }
@@ -538,7 +616,8 @@ function storeFailedJob($exception, $log_id, $queue, $payload, $connection)
 function updateCampaignLog($log_id, $failedJobId)
 {
     $campaignLog = CampaignLog::where('id', $log_id)->first();
-    $campaignLog->status = 'Failed -' . $failedJobId;
+    $campaignLog->status = 'Error - ' . $failedJobId;
+    $campaignLog->canRetry = true;
     $campaignLog->save();
 }
 function updateActionLog($log_id, $failedJobId)
@@ -549,4 +628,46 @@ function updateActionLog($log_id, $failedJobId)
         "data" => $failedJobId
     ];
     $actionLog->save();
+}
+
+/**
+ *
+ * Return a campaign event according to the event received from corresponding chhannel_id
+ */
+function getEvent($event, $channel_id)
+{
+
+    switch ($channel_id) {
+            //case for E-mail channel
+        case 1: {
+                $eventsynonyms = [
+                    "success" => ['delivered'],
+                    "failed" => ['rejected', 'bounced', 'failed']
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
+                }
+                return 'pending';
+            }
+            break;
+            //case for SMS channel
+        case 2: {
+                $eventsynonyms = [
+                    "success" => ['delivered', 'clicked', 'unsubscribed', 'opened'],
+                    "failed" => [
+                        'rejected by kannel or provider', 'ndnc number', 'rejected by provider',
+                        'number under blocked circle', 'blocked number', 'bounced', 'auto failed', 'failed'
+                    ]
+                ];
+                foreach ($eventsynonyms as $key => $synonyms) {
+                    if (in_array($event, $synonyms)) {
+                        return $key;
+                    }
+                }
+                return 'pending';
+            }
+            break;
+    }
 }

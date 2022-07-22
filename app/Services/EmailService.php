@@ -31,14 +31,14 @@ class EmailService
         return $mappedData;
     }
 
-    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $variables, $attachments, $reply_to)
+    public function getRequestBody(FlowAction $flowAction, $obj, $mongo_data, $templateVariables, $attachments, $reply_to)
     {
         $obj->values = [];
         collect($flowAction["configurations"])->map(function ($item) use ($obj) {
             if ($item->name != 'template')
                 $obj->values[$item->name] = $item->value;
         });
-        $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $variables) {
+        $recipients = collect($mongo_data['emails'])->map(function ($md) use ($obj, $templateVariables) {
             $cc = [];
             $bcc = [];
 
@@ -59,8 +59,28 @@ class EmailService
             if (!empty($bcc))
                 $obj->count += count($bcc);
 
+
             //filter out variables of this flowActions template
-            $variables = array_intersect($variables, $md['variables']);
+            $variables = collect($md['variables'])->map(function ($value, $key) use ($templateVariables) {
+                if (in_array($key, $templateVariables)) {
+                    return $value;
+                }
+            });
+            $variables = array_filter($variables->toArray());
+
+            $variables = collect($variables)->map(function ($var) {
+                if (is_string($var)) {
+                    return $var;
+                } else {
+                    if (empty($var->value)) {
+                        return "";
+                    } else {
+
+                        return $var->value;
+                    }
+                }
+            })->toArray();
+            // $variables = array_intersect($variables, $md['variables']);
 
             $data = array(
                 "to" => $md['to'],

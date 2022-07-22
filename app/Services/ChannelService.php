@@ -40,12 +40,14 @@ class ChannelService
         if ($campaignLog->status == 'Stopped') {
             printLog("Status changing to Stopped");
             $action_log->status = 'Stopped';
+            // In case of CampaignLog Stopped due to loop. update response of action_log also.
+            if ($campaignLog->actionLogs()->whereJsonContains('response', ["errors" => "Loop detected!"])->count() > 0) {
+                $action_log->response = ['errors' => "Loop detected!"];
+            }
             $action_log->save();
             printLog("Status changed to stopped.");
             return;
         }
-
-
 
         printLog("Till now we found Campaign, and created JWT. And now about to find flow action.", 2);
         $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $action_log->flow_action_id)->first();
@@ -81,35 +83,61 @@ class ChannelService
         $convertedData = convertBody($md[0]->data->sendTo, $campaign, $flow);
         // printLog("BEFORE GET REQUEST BODY", 1, $convertedData);
 
-        printLog("generating the request body data according to flow channel id.", 2);
-        $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
+        if (!$convertedData) {
+            printLog("Initializing the request body data to empty array in case of Invalid json (Whatsapp).", 2);
+            $reqBody = [
+                "count" => $action_log->no_of_records
+            ];
+            $reqBody = (object)$reqBody;
+        } else {
+            printLog("generating the request body data according to flow channel id.", 2);
+            $reqBody = $this->getRequestBody($flow, $convertedData, $action_log, $attachments, $reply_to);
+        }
 
         //get unique data only and count duplicate
         $duplicateCount = 0;
-        if ($flow['channel_id'] == 2) {
-            $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
-            //original count
-            $duplicateCount = $reqBody->count;
-            //new count after removing duplicate
-            $reqBody->count = count($reqBody->data->recipients);
-            //calculating duplicate
-            $duplicateCount -= $reqBody->count;
+        switch ($flow['channel_id']) {
+            case  1: {
+                    //original count
+                    $duplicateCount = count($reqBody->data->recipients);
+                    //filter duplicate
+                    $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
+                    //new count after removing duplicate
+                    $count = count($reqBody->data->recipients);
+                    //calculating duplicate
+                    $duplicateCount -= $count;
+                }
+                break;
+            case 2: {
+                    $reqBody->data->recipients = collect($reqBody->data->recipients)->unique()->toArray();
+                    //original count
+                    $duplicateCount = $reqBody->count;
+                    //new count after removing duplicate
+                    $reqBody->count = count($reqBody->data->recipients);
+                    //calculating duplicate
+                    $duplicateCount -= $reqBody->count;
+                }
+                break;
         }
-
         /**
          * Geting the libary object according to the flow channel id to send the data to the microservice
          */
         $lib = setLibrary($flow['channel_id']);
+        $res = new \stdClass();
         if ($reqBody->count == 0) {
-            $res = new \stdClass();
             $res->hasError = true;
             $res->message = "No Data Found";
         } else {
-            printLog("Now sending data to microservice", 1);
-            $res = $lib->send($reqBody->data);
-            //adding duplicate count to response
-            if (!empty($res)) {
-                $res->duplicate = $duplicateCount;
+            if (!$convertedData) {
+                $res->hasError = true;
+                $res->message = "Invalid Json!";
+            } else {
+                printLog("Now sending data to microservice", 1);
+                $res = $lib->send($reqBody->data);
+                //adding duplicate count to response
+                if (!empty($res)) {
+                    $res->duplicate = $duplicateCount;
+                }
             }
         }
         /**
@@ -134,11 +162,12 @@ class ChannelService
             }
         }
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5) {
+        // in case of rcs for webhook and email for queue
+        if ($flow->channel_id == 5 || $flow->channel_id == 1) {
             printLog("Job Consumed");
             return;
         }
+
         printLog('Got new action log and its id is ' . empty($next_action_log) ? "Action Log NOT FOUND" : $next_action_log->id, 1);
         if (!empty($next_action_log)) {
 
@@ -171,37 +200,39 @@ class ChannelService
         /**
          * extracting the all the variables from the mongo data
          */
-        $var = $convertedData['variables'];
         $obj = new \stdClass();
         $obj->count = 0;
+
         // get template of this flowAction
         $temp = $flow->template;
 
-        //filter out variables of this flowActions template
-        $variables = collect($var)->map(function ($value, $key) use ($temp) {
-            if (in_array($key, $temp->variables)) {
-                return $value;
-            }
-        });
-        $variables = array_filter($variables->toArray());
         $data = [];
         $mongo_data = $convertedData;
 
         $service = setService($flow['channel_id']);
         switch ($flow['channel_id']) {
             case 1: //For Email
-                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments, $reply_to);
+                $data = $service->getRequestBody($flow, $obj, $mongo_data, $temp->variables, $attachments, $reply_to);
                 printLog("GET REQUEST BODY", 1, $data);
                 break;
             case 2: //For SMS
-                $data = $service->getRequestBody($flow, $obj, $mongo_data, $variables, $attachments);
+                $data = $service->getRequestBody($flow, $obj, $mongo_data);
+
                 $obj->count = count($mongo_data['mobiles']);
                 break;
             case 3:
-                //
+                $data = $service->getRequestBody($flow, $mongo_data);
+                // Count total mobiles
+                collect($mongo_data['mobiles'])->pluck('mobiles')->each(function ($item) use ($obj) {
+                    if (is_string($item)) {
+                        $obj->count++;
+                    } else {
+                        $obj->count += count($item);
+                    }
+                });
                 break;
             case 5: //for rcs
-                $data = $service->getRequestBody($flow, $action_log, $mongo_data, array_values($variables), "template");
+                $data = $service->getRequestBody($flow, $action_log, $mongo_data, $temp->variables, "template");
                 $obj->count = count($mongo_data['mobiles']);
                 break;
         }
@@ -218,6 +249,8 @@ class ChannelService
             $val = $res->data->unique_id;
         } else if ($flow->channel_id == 2 && !empty($res) && !$res->hasError) {
             $val = $res->data;
+        } else if ($flow->channel_id == 3 && !empty($res) && !$res->hasError) {
+            $val = $res->request_id;
         } else if ($flow->channel_id == 5 && !empty($res) && !$res->hasError) {
             // for now generating random ref_id
             $val = preg_replace('/\s+/', '_',  Carbon::now()->timestamp) . '_' . md5(uniqid(rand(), true));
@@ -229,9 +262,11 @@ class ChannelService
         $action = ActionLog::where('id', $action_log->id)->first();
         $action->update(['status' => $status, "no_of_records" => $reqDataCount, 'ref_id' => $val, 'response' => $res]);
 
-        // in case of rcs for webhook
-        if ($flow->channel_id == 5)
-            return;
+        if ($status != 'Failed') {
+            // in case of rcs for webhook and email for queue
+            if ($flow->channel_id == 5 || $flow->channel_id == 1)
+                return;
+        }
 
         printLog("We are here to create new action log as per module data", 1);
 
@@ -271,7 +306,7 @@ class ChannelService
             ->update(["requestId" => $action_log->mongo_id],  ["node_count" => $path]);
 
         printLog('Get status from microservice ' . $status, 1);
-        printLog("Enents are ", 1, $events);
+        printLog("Events are ", 1, $events);
         if (in_array($status, $events) && !empty($next_flow_id)) {
             printLog('Next flow id is ' . $next_flow_id, 1);
             $flow = FlowAction::where('campaign_id', $action_log->campaign_id)->where('id', $next_flow_id)->first();
