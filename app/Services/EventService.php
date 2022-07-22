@@ -323,7 +323,7 @@ class EventService
                 // $numberOfRecords = countContacts($filteredData);
                 $actionLogData = [
                     "campaign_id" => $action_log->campaign_id,
-                    "no_of_records" => $action_log->no_of_records,
+                    "no_of_records" => 0,
                     "response" => $loop_detected ? ['errors' => 'Loop detected!'] : "",
                     "status" => $loop_detected ? "Stopped" : "pending",
                     "report_status" => "pending",
